@@ -70,6 +70,51 @@ export const transactionUpdateSchema = z.object({
   fxRateToDefault: decimalString.optional(),
 });
 
+export const campaignCreateSchema = z.object({
+  name: z.string().min(1).max(80),
+  target: decimalString, // major units, default currency
+  targetDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  linkedAccountId: z.string().optional(),
+  manualProgress: decimalString.optional(),
+});
+
+export const campaignUpdateSchema = z.object({
+  name: z.string().min(1).max(80).optional(),
+  target: decimalString.optional(),
+  targetDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  linkedAccountId: z.string().nullable().optional(),
+  manualProgress: decimalString.nullable().optional(),
+  status: z.enum(["active", "paused", "done", "abandoned"]).optional(),
+});
+
+export const scheduledItemCreateSchema = z.object({
+  name: z.string().min(1).max(120),
+  direction: z.enum(["inflow", "outflow"]),
+  amount: decimalString, // major units in currencyCode
+  currencyCode: z.string().min(3).max(4),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  recurrence: z.enum(["monthly", "yearly"]).optional(),
+  accountId: z.string().optional(),
+  categoryId: z.string().optional(),
+  alertDaysBefore: z.number().int().min(0).max(365).default(7),
+});
+
+export const scheduledItemUpdateSchema = scheduledItemCreateSchema.partial().extend({
+  status: z.enum(["pending", "logged", "skipped"]).optional(),
+});
+
+export type CampaignCreateInput = z.infer<typeof campaignCreateSchema>;
+export type CampaignUpdateInput = z.infer<typeof campaignUpdateSchema>;
+export type ScheduledItemCreateInput = z.infer<typeof scheduledItemCreateSchema>;
+export type ScheduledItemUpdateInput = z.infer<typeof scheduledItemUpdateSchema>;
+
 export type AccountCreateInput = z.infer<typeof accountCreateSchema>;
 export type AccountUpdateInput = z.infer<typeof accountUpdateSchema>;
 export type TransactionCreateInput = z.infer<typeof transactionCreateSchema>;

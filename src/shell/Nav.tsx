@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { getNavItems } from "./module-registry";
 import { FxTicker } from "@/modules/finance/components/FxTicker";
+import { AlertTray } from "./AlertTray";
 
 export function Nav() {
   const pathname = usePathname();
@@ -42,6 +43,7 @@ export function Nav() {
       <div className="hidden md:block">
         <FxTicker />
       </div>
+      <AlertTray />
     </header>
   );
 }

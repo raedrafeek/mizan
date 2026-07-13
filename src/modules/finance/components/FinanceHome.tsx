@@ -10,6 +10,8 @@ import { TransactionList } from "./TransactionList";
 import { NetPositionHero } from "./NetPositionHero";
 import { CashFlowCard } from "./CashFlowCard";
 import { TopCategoriesCard } from "./TopCategoriesCard";
+import { CampaignsCard } from "./CampaignsCard";
+import { HorizonCard } from "./HorizonCard";
 
 const SELECTED_KEY = "mizan.spendFrom";
 
@@ -80,6 +82,8 @@ export function FinanceHome() {
         </Card>
         <CashFlowCard />
         <TopCategoriesCard />
+        <HorizonCard />
+        <CampaignsCard />
       </div>
     </div>
   );
