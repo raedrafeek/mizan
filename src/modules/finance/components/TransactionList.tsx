@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/cn";
+import { CardSkeleton } from "@/shell/Skeleton";
 import { fmt } from "@/lib/format-money";
 import {
   useCategories,
@@ -33,7 +34,7 @@ export function TransactionList({
   const { data: currencyData } = useCurrencies();
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  if (isLoading) return <p className="text-xs text-faint">Loading…</p>;
+  if (isLoading) return <CardSkeleton rows={limit ? 4 : 8} />;
 
   let items = data?.pages.flatMap((p) => p.items) ?? [];
   if (limit) items = items.slice(0, limit);
@@ -43,22 +44,61 @@ export function TransactionList({
 
   const exponentOf = (code: string) =>
     currencyData?.currencies.find((c) => c.code === code)?.exponent ?? 2;
+  const defExponent = currencyData
+    ? exponentOf(currencyData.defaultCurrency)
+    : 3;
+
+  const renderRow = (t: TransactionDto) =>
+    editingId === t.id ? (
+      <TransactionEditRow key={t.id} txn={t} onClose={() => setEditingId(null)} />
+    ) : (
+      <TransactionRow
+        key={t.id}
+        txn={t}
+        exponent={exponentOf(t.currencyCode)}
+        onEdit={() => setEditingId(t.id)}
+      />
+    );
+
+  // dashboard (limited) view stays flat; the full page groups by day with net totals
+  if (limit) {
+    return <div className="flex flex-col gap-0.5">{items.map(renderRow)}</div>;
+  }
+
+  const groups: { date: string; items: TransactionDto[]; netDefault: number }[] = [];
+  for (const t of items) {
+    let g = groups[groups.length - 1];
+    if (!g || g.date !== t.date) {
+      g = { date: t.date, items: [], netDefault: 0 };
+      groups.push(g);
+    }
+    g.items.push(t);
+    const sign = t.type === "adjustment" ? Math.sign(t.amountMinor) || 1 : SIGN[t.type];
+    g.netDefault += sign * Math.abs(t.amountDefaultMinor);
+  }
 
   return (
     <div className="flex flex-col gap-0.5">
-      {items.map((t) =>
-        editingId === t.id ? (
-          <TransactionEditRow key={t.id} txn={t} onClose={() => setEditingId(null)} />
-        ) : (
-          <TransactionRow
-            key={t.id}
-            txn={t}
-            exponent={exponentOf(t.currencyCode)}
-            onEdit={() => setEditingId(t.id)}
-          />
-        ),
-      )}
-      {!limit && hasNextPage && (
+      {groups.map((g) => (
+        <div key={g.date}>
+          <div className="num mt-3 flex items-center justify-between border-b border-border px-1.5 pb-1.5 text-[10px] text-faint first:mt-0">
+            <span>
+              {new Date(g.date + "T00:00:00").toLocaleDateString("en", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+              })}
+            </span>
+            <span className={cn(g.netDefault < 0 ? "text-neg" : "text-pos")}>
+              {g.netDefault < 0 ? "−" : "+"}
+              {fmt(Math.abs(g.netDefault), { exponent: defExponent })}{" "}
+              {currencyData?.defaultCurrency}
+            </span>
+          </div>
+          {g.items.map(renderRow)}
+        </div>
+      ))}
+      {hasNextPage && (
         <button
           onClick={() => fetchNextPage()}
           disabled={isFetchingNextPage}

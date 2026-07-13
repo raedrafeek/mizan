@@ -1,21 +1,68 @@
 "use client";
 
 import { Card } from "@/shell/Card";
+import { CardSkeleton } from "@/shell/Skeleton";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
+import { todayISO } from "@/lib/format-money";
 import { useCurrencies } from "../api/hooks";
 import { useCashFlow } from "../api/hooks-m2";
 
-export function CashFlowCard() {
-  const { data } = useCashFlow();
+export function MonthNav({
+  month,
+  onChange,
+}: {
+  month: string;
+  onChange: (m: string) => void;
+}) {
+  const current = todayISO().slice(0, 7);
+  function shift(delta: number) {
+    const d = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1 + delta, 1);
+    onChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  const label = new Date(month + "-01T00:00:00")
+    .toLocaleString("en", { month: "short", year: month.slice(0, 4) === current.slice(0, 4) ? undefined : "2-digit" })
+    .toUpperCase();
+  return (
+    <span className="num flex items-center gap-1.5 text-[10px] text-faint">
+      <button onClick={() => shift(-1)} className="px-1 text-muted hover:text-ink" aria-label="Previous month">
+        ‹
+      </button>
+      <span className={cn("min-w-[34px] text-center", month !== current && "text-warn")}>{label}</span>
+      <button
+        onClick={() => shift(1)}
+        disabled={month >= current}
+        className="px-1 text-muted hover:text-ink disabled:opacity-30"
+        aria-label="Next month"
+      >
+        ›
+      </button>
+    </span>
+  );
+}
+
+export function CashFlowCard({
+  month,
+  onMonthChange,
+}: {
+  month: string;
+  onMonthChange: (m: string) => void;
+}) {
+  const { data } = useCashFlow(month);
   const { data: currencyData } = useCurrencies();
   const exponent =
     currencyData?.currencies.find((c) => c.code === currencyData.defaultCurrency)
       ?.exponent ?? 3;
+  const isCurrentMonth = month === todayISO().slice(0, 7);
 
-  if (!data) return <Card title="CASH FLOW"><p className="text-xs text-faint">Loading…</p></Card>;
+  if (!data) {
+    return (
+      <Card title="CASH FLOW" right={<MonthNav month={month} onChange={onMonthChange} />}>
+        <CardSkeleton rows={5} />
+      </Card>
+    );
+  }
   const cf = data.cashflow;
-  const monthName = new Date(cf.month + "-01T00:00:00").toLocaleString("en", { month: "long" }).toUpperCase();
 
   const totalBudget = data.categories.reduce((s, c) => s + (c.budgetDefaultMinor ?? 0), 0);
   const budgetedSpend = data.categories
@@ -23,13 +70,15 @@ export function CashFlowCard() {
     .reduce((s, c) => s + c.spentDefaultMinor, 0);
   const budgetLeft = totalBudget - budgetedSpend;
   const usedPct = totalBudget > 0 ? Math.min(100, (budgetedSpend / totalBudget) * 100) : null;
-  const dayOfMonth = Number(new Date().toISOString().slice(8, 10));
+  const dayOfMonth = isCurrentMonth
+    ? Number(todayISO().slice(8, 10))
+    : cf.dailyExpenseDefaultMinor.length;
   const daysInMonth = cf.dailyExpenseDefaultMinor.length;
   const pacePct = (dayOfMonth / daysInMonth) * 100;
   const maxDay = Math.max(...cf.dailyExpenseDefaultMinor, 1);
 
   return (
-    <Card title="CASH FLOW" right={<span className="num text-[10px] text-faint">{monthName}</span>}>
+    <Card title="CASH FLOW" right={<MonthNav month={month} onChange={onMonthChange} />}>
       <div className="flex flex-col gap-2 text-[12.5px]">
         <p className="flex justify-between">
           <span className="text-muted">Income</span>
@@ -49,7 +98,9 @@ export function CashFlowCard() {
         </p>
         <p className="flex justify-between">
           <span className="text-muted">Savings</span>
-          <span className="num text-ink">{formatMinor(cf.savingsDefaultMinor, exponent)}</span>
+          <span className={cn("num", cf.savingsDefaultMinor < 0 ? "text-neg" : "text-ink")}>
+            {formatMinor(cf.savingsDefaultMinor, exponent)}
+          </span>
         </p>
         {cf.savingsRatePct !== null && (
           <p className="flex justify-between">
@@ -90,7 +141,7 @@ export function CashFlowCard() {
           <p className="num mb-1.5 flex justify-between text-[10px] text-faint">
             <span>BUDGET PACE</span>
             <span className={usedPct > pacePct ? "text-warn" : "text-pos"}>
-              {usedPct.toFixed(0)}% USED · DAY {dayOfMonth}
+              {usedPct.toFixed(0)}% USED{isCurrentMonth && ` · DAY ${dayOfMonth}`}
             </span>
           </p>
           <div className="relative h-1 rounded-sm bg-inset-2">
@@ -101,10 +152,12 @@ export function CashFlowCard() {
               )}
               style={{ width: `${usedPct}%` }}
             />
-            <span
-              className="absolute -top-[3px] h-2.5 w-[1.5px] bg-ink"
-              style={{ left: `${pacePct}%` }}
-            />
+            {isCurrentMonth && (
+              <span
+                className="absolute -top-[3px] h-2.5 w-[1.5px] bg-ink"
+                style={{ left: `${pacePct}%` }}
+              />
+            )}
           </div>
         </div>
       )}

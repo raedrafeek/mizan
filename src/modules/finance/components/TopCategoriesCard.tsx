@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { Card } from "@/shell/Card";
+import { CardSkeleton } from "@/shell/Skeleton";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
 import { useCurrencies } from "../api/hooks";
 import { useCashFlow, useSetBudget } from "../api/hooks-m2";
 
-export function TopCategoriesCard() {
-  const { data } = useCashFlow();
+export function TopCategoriesCard({ month }: { month: string }) {
+  const { data } = useCashFlow(month);
   const { data: currencyData } = useCurrencies();
   const setBudget = useSetBudget();
   const [editing, setEditing] = useState<string | null>(null);
@@ -18,7 +19,12 @@ export function TopCategoriesCard() {
     currencyData?.currencies.find((c) => c.code === currencyData.defaultCurrency)
       ?.exponent ?? 3;
 
-  if (!data) return <Card title="TOP CATEGORIES"><p className="text-xs text-faint">Loading…</p></Card>;
+  if (!data)
+    return (
+      <Card title="TOP CATEGORIES">
+        <CardSkeleton rows={5} />
+      </Card>
+    );
 
   const rows = data.categories.filter(
     (c) => c.spentDefaultMinor > 0 || c.budgetDefaultMinor !== null,
@@ -38,7 +44,7 @@ export function TopCategoriesCard() {
       title="TOP CATEGORIES"
       right={
         <span className="num text-[10px] text-faint">
-          {new Date().toLocaleString("en", { month: "long" }).toUpperCase()} · click amounts to set budgets
+          {new Date(month + "-01T00:00:00").toLocaleString("en", { month: "long" }).toUpperCase()} · click amounts to set budgets
         </span>
       }
     >

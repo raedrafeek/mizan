@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/cn";
+import { Skeleton } from "@/shell/Skeleton";
 import { formatMinor } from "@/lib/money";
 import { masked, usePrivacy } from "@/shell/privacy";
 import { useCurrencies } from "../api/hooks";
@@ -45,7 +46,15 @@ export function NetPositionHero() {
     return { nets, liabs, first, delta, deltaPct, days: nets.length - 1 };
   }, [data]);
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="flex flex-col gap-3 py-2">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-12 w-72" />
+        <Skeleton className="h-3.5 w-44" />
+      </div>
+    );
+  }
   const { current } = data;
   const up = (series?.delta ?? 0) >= 0;
 

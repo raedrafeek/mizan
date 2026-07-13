@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/shell/Card";
+import { Skeleton } from "@/shell/Skeleton";
 import Link from "next/link";
+import { todayISO } from "@/lib/format-money";
 import { useAccounts, useCurrencies } from "../api/hooks";
 import { AccountsStrip } from "./AccountsStrip";
 import { QuickLog } from "./QuickLog";
@@ -19,6 +21,7 @@ export function FinanceHome() {
   const { data: accounts, isLoading } = useAccounts();
   const { data: currencyData } = useCurrencies();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [month, setMonth] = useState(() => todayISO().slice(0, 7));
 
   // restore last "spend from" account
   useEffect(() => {
@@ -41,7 +44,21 @@ export function FinanceHome() {
       ?.exponent ?? 3;
 
   if (isLoading) {
-    return <p className="py-12 text-center text-sm text-faint">Loading…</p>;
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3 py-2">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-12 w-72" />
+          <Skeleton className="h-3.5 w-44" />
+        </div>
+        <div className="flex gap-3.5">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-[120px] w-[212px] flex-none rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-[62px] rounded-2xl" />
+      </div>
+    );
   }
 
   if (!accounts || accounts.length === 0) {
@@ -80,8 +97,8 @@ export function FinanceHome() {
         >
           <TransactionList limit={6} />
         </Card>
-        <CashFlowCard />
-        <TopCategoriesCard />
+        <CashFlowCard month={month} onMonthChange={setMonth} />
+        <TopCategoriesCard month={month} />
         <HorizonCard />
         <CampaignsCard />
       </div>

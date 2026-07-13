@@ -5,6 +5,7 @@ import Decimal from "decimal.js";
 import { cn } from "@/lib/cn";
 import { parseAmount, convertMinor, formatMinor } from "@/lib/money";
 import { todayISO } from "@/lib/format-money";
+import { useToast } from "@/shell/toast";
 import {
   useAccounts,
   useCategories,
@@ -15,6 +16,23 @@ import type { AccountDto } from "../types";
 import { Icon } from "./Icon";
 
 type Mode = "expense" | "income" | "transfer";
+
+const LAST_CAT_KEY = "mizan.lastCat"; // + "." + mode
+const USAGE_KEY = "mizan.catUsage";
+
+function readUsage(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(USAGE_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function bumpUsage(categoryId: string) {
+  const usage = readUsage();
+  usage[categoryId] = (usage[categoryId] ?? 0) + 1;
+  localStorage.setItem(USAGE_KEY, JSON.stringify(usage));
+}
 
 function dateLabel(date: string): string {
   const today = todayISO();
@@ -51,6 +69,7 @@ export function QuickLog({
   const { data: currencyData } = useCurrencies();
   const { data: accounts } = useAccounts();
   const create = useCreateTransaction();
+  const toast = useToast();
   const amountRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLDivElement>(null);
 
@@ -76,10 +95,26 @@ export function QuickLog({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const rail = useMemo(
-    () => (categories ?? []).filter((c) => c.type === (mode === "income" ? "income" : "expense")),
-    [categories, mode],
-  );
+  // rail ordered by this device's usage (most-logged categories first)
+  const rail = useMemo(() => {
+    const usage = typeof window === "undefined" ? {} : readUsage();
+    return (categories ?? [])
+      .filter((c) => c.type === (mode === "income" ? "income" : "expense"))
+      .sort(
+        (a, b) =>
+          (usage[b.id] ?? 0) - (usage[a.id] ?? 0) || a.sortOrder - b.sortOrder,
+      );
+  }, [categories, mode]);
+
+  // a category is ALWAYS selected (last used per mode, else first in rail) —
+  // no "Uncategorized" logs from the quick-log
+  useEffect(() => {
+    if (mode === "transfer" || rail.length === 0) return;
+    if (categoryId && rail.some((c) => c.id === categoryId)) return;
+    const saved = localStorage.getItem(`${LAST_CAT_KEY}.${mode}`);
+    const next = rail.find((c) => c.id === saved) ?? rail[0];
+    setCategoryId(next.id);
+  }, [rail, mode, categoryId]);
   const counterAccounts = useMemo(
     () =>
       (accounts ?? []).filter((a) => a.kind === "transactional" && a.id !== account?.id),
@@ -110,28 +145,52 @@ export function QuickLog({
       ? "Logging to Credit Card — adds to outstanding"
       : null;
 
-  async function commit() {
+  function commit() {
     setError(null);
     if (!account) return setError("Select an account to spend from");
     if (!amount) return setError("Enter an amount");
     if (mode === "transfer" && !counter) return setError("Pick a destination account");
+    if (mode !== "transfer" && !categoryId) return setError("Pick a category");
     try {
       parseAmount(amount, account.currency.exponent); // validate locally first
-      await create.mutateAsync({
-        accountId: account.id,
-        type: mode === "transfer" ? "transfer_out" : mode,
-        amount,
-        categoryId: mode === "transfer" ? undefined : (categoryId ?? undefined),
-        counterAccountId: mode === "transfer" ? counter!.id : undefined,
-        date,
-      });
-      setAmount("");
-      setDate(todayISO());
-      setFlash(true);
-      setTimeout(() => setFlash(false), 1200);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to log");
+      return setError(e instanceof Error ? e.message : "Invalid amount");
     }
+
+    const payload = {
+      accountId: account.id,
+      type: (mode === "transfer" ? "transfer_out" : mode) as
+        | "expense"
+        | "income"
+        | "transfer_out",
+      amount,
+      categoryId: mode === "transfer" ? undefined : categoryId!,
+      counterAccountId: mode === "transfer" ? counter!.id : undefined,
+      date,
+    };
+
+    // optimistic: clear instantly, reconcile in the background
+    const failedAmount = amount;
+    const failedDate = date;
+    setAmount("");
+    setDate(todayISO());
+    setFlash(true);
+    setTimeout(() => setFlash(false), 1200);
+    if (mode !== "transfer" && categoryId) {
+      bumpUsage(categoryId);
+      localStorage.setItem(`${LAST_CAT_KEY}.${mode}`, categoryId);
+    }
+
+    create.mutate(payload, {
+      onError: (e) => {
+        setAmount(failedAmount);
+        setDate(failedDate);
+        setFlash(false);
+        toast.error(
+          `Not logged: ${e instanceof Error ? e.message : "request failed"} — your entry was restored`,
+        );
+      },
+    });
   }
 
   const yesterday = new Date(new Date(todayISO() + "T00:00:00").getTime() - 86_400_000)
@@ -271,7 +330,7 @@ export function QuickLog({
                   return (
                     <button
                       key={c.id}
-                      onClick={() => setCategoryId(sel ? null : c.id)}
+                      onClick={() => setCategoryId(c.id)}
                       className={cn(
                         "flex flex-none items-center gap-2 whitespace-nowrap rounded-full border px-3.5 py-2 text-[12.5px] font-semibold",
                         sel
@@ -291,10 +350,9 @@ export function QuickLog({
         {/* commit */}
         <button
           onClick={commit}
-          disabled={create.isPending}
-          className="flex-none rounded-[11px] bg-ink px-5 py-3 text-[12.5px] font-bold tracking-[1.5px] text-surface hover:bg-white disabled:opacity-60 sm:px-6"
+          className="flex-none rounded-[11px] bg-ink px-5 py-3 text-[12.5px] font-bold tracking-[1.5px] text-surface hover:bg-white sm:px-6"
         >
-          {create.isPending ? "…" : "COMMIT"}
+          COMMIT
         </button>
       </div>
 
