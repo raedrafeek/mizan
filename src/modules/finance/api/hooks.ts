@@ -135,6 +135,18 @@ export function useDeleteTransaction() {
   });
 }
 
+export function useReconcileAccount() {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: ({ id, actualBalance }: { id: string; actualBalance: string }) =>
+      api(`/api/finance/accounts/${id}/reconcile`, {
+        method: "POST",
+        body: JSON.stringify({ actualBalance }),
+      }),
+    onSuccess: invalidate,
+  });
+}
+
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({

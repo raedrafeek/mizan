@@ -81,7 +81,8 @@ function TransactionRow({
   onEdit: () => void;
 }) {
   const del = useDeleteTransaction();
-  const sign = SIGN[t.type];
+  // adjustments carry their own sign in amountMinor; other types derive it
+  const sign = t.type === "adjustment" ? (t.amountMinor < 0 ? -1 : 1) : SIGN[t.type];
   const label =
     t.category?.name ??
     (t.type === "transfer_out"

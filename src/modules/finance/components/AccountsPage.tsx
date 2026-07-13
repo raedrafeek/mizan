@@ -10,6 +10,7 @@ import {
   useCreateAccount,
   useCurrencies,
   useDeleteAccount,
+  useReconcileAccount,
   useUpdateAccount,
 } from "../api/hooks";
 import type { AccountDto } from "../types";
@@ -62,9 +63,13 @@ function AccountRow({
 }) {
   const update = useUpdateAccount();
   const del = useDeleteAccount();
+  const reconcile = useReconcileAccount();
   const { privacy } = usePrivacy();
   const [editingQty, setEditingQty] = useState(false);
   const [qty, setQty] = useState(a.quantity ?? "0");
+  const [reconciling, setReconciling] = useState(false);
+  const [actual, setActual] = useState("");
+  const [reconcileErr, setReconcileErr] = useState<string | null>(null);
 
   return (
     <Card className={cn(a.isLiability && "border-neg/25 bg-neg/5")}>
@@ -138,6 +143,51 @@ function AccountRow({
                 edit
               </button>
             </>
+          )}
+        </div>
+      )}
+
+      {a.kind === "transactional" && (
+        <div className="num mt-2 text-[10.5px] text-faint">
+          {reconciling ? (
+            <span className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={actual}
+                onChange={(e) => setActual(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Escape") setReconciling(false);
+                  if (e.key === "Enter" && actual) {
+                    setReconcileErr(null);
+                    try {
+                      await reconcile.mutateAsync({ id: a.id, actualBalance: actual });
+                      setReconciling(false);
+                      setActual("");
+                    } catch (err) {
+                      setReconcileErr(err instanceof Error ? err.message : "Failed");
+                    }
+                  }
+                }}
+                inputMode="decimal"
+                placeholder={`actual balance (${a.currencyCode})`}
+                className="w-40 rounded border border-border-3 bg-surface px-2 py-1 text-right text-ink outline-none"
+              />
+              <button
+                onClick={() => setReconciling(false)}
+                className="text-muted hover:text-ink"
+              >
+                cancel
+              </button>
+              {reconcileErr && <span className="text-neg">{reconcileErr}</span>}
+            </span>
+          ) : (
+            <button
+              onClick={() => setReconciling(true)}
+              className="text-muted underline underline-offset-2 hover:text-ink"
+              title="Enter the real balance; an adjustment transaction records the difference"
+            >
+              reconcile
+            </button>
           )}
         </div>
       )}
