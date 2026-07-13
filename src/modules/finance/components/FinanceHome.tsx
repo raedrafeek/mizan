@@ -7,6 +7,9 @@ import { useAccounts, useCurrencies } from "../api/hooks";
 import { AccountsStrip } from "./AccountsStrip";
 import { QuickLog } from "./QuickLog";
 import { TransactionList } from "./TransactionList";
+import { NetPositionHero } from "./NetPositionHero";
+import { CashFlowCard } from "./CashFlowCard";
+import { TopCategoriesCard } from "./TopCategoriesCard";
 
 const SELECTED_KEY = "mizan.spendFrom";
 
@@ -55,6 +58,7 @@ export function FinanceHome() {
 
   return (
     <div className="flex flex-col gap-5">
+      <NetPositionHero />
       <AccountsStrip
         accounts={accounts}
         defaultCurrency={currencyData?.defaultCurrency ?? "KWD"}
@@ -63,7 +67,7 @@ export function FinanceHome() {
         onSelect={select}
       />
       <QuickLog account={selected} />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card
           title="RECENT TRANSACTIONS"
           right={
@@ -72,8 +76,10 @@ export function FinanceHome() {
             </Link>
           }
         >
-          <TransactionList limit={8} />
+          <TransactionList limit={6} />
         </Card>
+        <CashFlowCard />
+        <TopCategoriesCard />
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/fx", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/snapshot", "schedule": "55 20 * * *" }
+    { "path": "/api/cron/snapshot", "schedule": "55 20 * * *" },
+    { "path": "/api/cron/stock-prices", "schedule": "30 * * * *" }
   ]
 }
