@@ -102,7 +102,16 @@ actively logging real data (real accounts + transactions exist in the DB —
   (fra1, colocated) is much faster.
 - `npm run backup` — full JSON dump to `backups/` (gitignored).
 
-## Environment quirks (Windows machine — IMPORTANT)
+## Environment quirks (per-machine — IMPORTANT)
+
+> The notes below describe the ORIGINAL work machine (office). **On a new
+> machine** (e.g. the user's home computer): first check `node --version` and
+> `git --version`; if missing, install them (portable installs to
+> `%LOCALAPPDATA%` worked well before, no admin needed), run `npm install` in
+> `mizan/`, and verify `.env` exists (it syncs via OneDrive with the project;
+> if cloning from GitHub instead, recreate it from `.env.example` — Supabase
+> URLs, CRON_SECRET; leave APP_PASSWORD empty locally). Claude's persistent
+> memory does NOT transfer between machines — this file is the source of truth.
 
 - **Portable Node 22.14.0 at `%LOCALAPPDATA%\nodejs`**, portable MinGit at
   `%LOCALAPPDATA%\git\cmd` — both on user PATH, but **fresh shells in a new
