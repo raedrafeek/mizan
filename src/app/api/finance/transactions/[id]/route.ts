@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, parseAmount } from "@/lib/money";
 import { transactionUpdateSchema } from "@/lib/schemas/finance";
-import { getDefaultCurrency } from "@/modules/finance/server/settings";
+import { loadFxContext } from "@/modules/finance/server/fx";
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -15,30 +15,22 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   const input = parsed.data;
 
-  const existing = await prisma.transaction.findUnique({
-    where: { id },
-    include: { account: { include: { currency: true } } },
-  });
+  const [existing, fx] = await Promise.all([
+    prisma.transaction.findUnique({ where: { id } }),
+    loadFxContext(),
+  ]);
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  const def = await getDefaultCurrency();
-  const defExponent =
-    (await prisma.currency.findUnique({ where: { code: def } }))?.exponent ?? 3;
+  const exponent = fx.currencies.get(existing.currencyCode)?.exponent ?? 2;
 
   const amountMinor =
     input.amount !== undefined
-      ? parseAmount(input.amount, existing.account.currency.exponent)
+      ? parseAmount(input.amount, exponent)
       : Number(existing.amountMinor);
   const rate =
     input.fxRateToDefault !== undefined
       ? new Decimal(input.fxRateToDefault)
       : new Decimal(existing.fxRateToDefault.toString());
-  const amountDefaultMinor = convertMinor(
-    amountMinor,
-    rate,
-    existing.account.currency.exponent,
-    defExponent,
-  );
+  const amountDefaultMinor = convertMinor(amountMinor, rate, exponent, fx.defExponent);
 
   const txn = await prisma.transaction.update({
     where: { id },

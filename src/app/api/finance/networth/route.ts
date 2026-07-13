@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { computeNetPosition } from "@/modules/finance/server/balances";
+import { loadFxContext } from "@/modules/finance/server/fx";
 import { refreshCryptoQuotes } from "@/modules/finance/server/prices";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +14,9 @@ export async function GET() {
   } catch {
     // stale quotes flagged downstream
   }
+  const ctx = await loadFxContext();
   const [current, snapshots] = await Promise.all([
-    computeNetPosition(),
+    computeNetPosition(ctx),
     prisma.netWorthSnapshot.findMany({ orderBy: { date: "desc" }, take: 30 }),
   ]);
   return NextResponse.json(jsonSafe({ current, snapshots: snapshots.reverse() }));

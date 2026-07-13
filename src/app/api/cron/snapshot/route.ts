@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeBalances, computeNetPosition } from "@/modules/finance/server/balances";
+import {
+  computeBalances,
+  netPositionFromBalances,
+} from "@/modules/finance/server/balances";
+import { loadFxContext } from "@/modules/finance/server/fx";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +16,9 @@ export async function GET(req: NextRequest) {
   try {
     // Kuwait time (UTC+3) date — cron fires 20:55 UTC = 23:55 AST
     const date = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
-    const [net, balances] = await Promise.all([computeNetPosition(), computeBalances()]);
+    const ctx = await loadFxContext();
+    const balances = await computeBalances(ctx);
+    const net = netPositionFromBalances(balances);
     await prisma.netWorthSnapshot.upsert({
       where: { date },
       update: {

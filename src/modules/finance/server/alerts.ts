@@ -1,19 +1,49 @@
 import { prisma } from "@/lib/prisma";
 import { formatMinor } from "@/lib/money";
 import { computeCategorySpend } from "./reports";
-import { getDefaultCurrency } from "./settings";
+import { loadFxContext } from "./fx";
+
+const EVAL_THROTTLE_MS = 10 * 60_000;
+const LAST_EVAL_KEY = "alerts.lastEval";
 
 /**
  * Evaluate finance alert conditions and upsert deduped Alert rows.
- * dedupeKey makes re-runs idempotent (e.g. one budget alert per category per month).
- * Called lazily from GET /api/alerts — cheap queries only.
+ * Throttled: runs at most every 10 minutes (tracked in settings) since it's
+ * invoked lazily from GET /api/alerts. dedupeKey makes re-runs idempotent.
  */
-export async function evaluateFinanceAlerts(): Promise<void> {
+export async function evaluateFinanceAlerts(force = false): Promise<void> {
+  const last = await prisma.setting.findUnique({ where: { key: LAST_EVAL_KEY } });
+  if (!force && last && Date.now() - Number(JSON.parse(last.valueJson)) < EVAL_THROTTLE_MS) {
+    return;
+  }
+  await prisma.setting.upsert({
+    where: { key: LAST_EVAL_KEY },
+    update: { valueJson: JSON.stringify(Date.now()) },
+    create: { key: LAST_EVAL_KEY, valueJson: JSON.stringify(Date.now()) },
+  });
+
   const now = Date.now() + 3 * 3_600_000; // Kuwait time
   const today = new Date(now).toISOString().slice(0, 10);
   const month = today.slice(0, 7);
-  const def = await getDefaultCurrency();
-  const exp = (await prisma.currency.findUnique({ where: { code: def } }))?.exponent ?? 3;
+
+  const [fx, spend, items, priced, quoteRows] = await Promise.all([
+    loadFxContext(),
+    computeCategorySpend(month),
+    prisma.scheduledItem.findMany({ where: { status: "pending" } }),
+    prisma.account.findMany({
+      where: {
+        archivedAt: null,
+        kind: "priced",
+        includeInNetWorth: true,
+        assetSymbol: { not: null },
+      },
+    }),
+    prisma.$queryRaw<{ assetSymbol: string; fetchedAt: Date }[]>`
+      SELECT DISTINCT ON ("assetSymbol") "assetSymbol", "fetchedAt"
+      FROM price_quotes
+      ORDER BY "assetSymbol", "fetchedAt" DESC`,
+  ]);
+  const quoteMap = new Map(quoteRows.map((q) => [q.assetSymbol, q]));
 
   // --- budget pace: spent above linear month pace + 15pt tolerance, or over budget ---
   const dayOfMonth = Number(today.slice(8, 10));
@@ -24,7 +54,6 @@ export async function evaluateFinanceAlerts(): Promise<void> {
   ).getDate();
   const pacePct = (dayOfMonth / daysInMonth) * 100;
 
-  const spend = await computeCategorySpend(month);
   for (const c of spend) {
     if (c.budgetDefaultMinor === null || c.budgetDefaultMinor <= 0) continue;
     const usedPct = (c.spentDefaultMinor / c.budgetDefaultMinor) * 100;
@@ -34,7 +63,7 @@ export async function evaluateFinanceAlerts(): Promise<void> {
       kind: "budget_pace",
       severity: over ? "critical" : "warn",
       title: over
-        ? `${c.name} over budget by ${formatMinor(c.spentDefaultMinor - c.budgetDefaultMinor, exp)} ${def}`
+        ? `${c.name} over budget by ${formatMinor(c.spentDefaultMinor - c.budgetDefaultMinor, fx.defExponent)} ${fx.def}`
         : `${c.name} at ${usedPct.toFixed(0)}% of budget — pace is ${pacePct.toFixed(0)}%`,
       entityRef: `category:${c.categoryId}`,
       dedupeKey: `budget_pace:${c.categoryId}:${month}:${over ? "over" : "pace"}`,
@@ -42,7 +71,6 @@ export async function evaluateFinanceAlerts(): Promise<void> {
   }
 
   // --- horizon due soon ---
-  const items = await prisma.scheduledItem.findMany({ where: { status: "pending" } });
   for (const i of items) {
     const daysUntil = Math.round(
       (new Date(i.dueDate + "T00:00:00Z").getTime() -
@@ -50,8 +78,8 @@ export async function evaluateFinanceAlerts(): Promise<void> {
         86_400_000,
     );
     if (daysUntil > i.alertDaysBefore) continue;
-    const cur = await prisma.currency.findUnique({ where: { code: i.currencyCode } });
-    const amt = `${i.direction === "outflow" ? "−" : "+"}${formatMinor(Number(i.amountMinor), cur?.exponent ?? 2)} ${i.currencyCode}`;
+    const exponent = fx.currencies.get(i.currencyCode)?.exponent ?? 2;
+    const amt = `${i.direction === "outflow" ? "−" : "+"}${formatMinor(Number(i.amountMinor), exponent)} ${i.currencyCode}`;
     await upsertAlert({
       kind: "horizon_due",
       severity: daysUntil < 0 ? "critical" : "warn",
@@ -65,14 +93,8 @@ export async function evaluateFinanceAlerts(): Promise<void> {
   }
 
   // --- stale prices on counted priced accounts ---
-  const priced = await prisma.account.findMany({
-    where: { archivedAt: null, kind: "priced", includeInNetWorth: true, assetSymbol: { not: null } },
-  });
   for (const a of priced) {
-    const quote = await prisma.priceQuote.findFirst({
-      where: { assetSymbol: a.assetSymbol! },
-      orderBy: { fetchedAt: "desc" },
-    });
+    const quote = quoteMap.get(a.assetSymbol!);
     const ageDays = quote
       ? (Date.now() - quote.fetchedAt.getTime()) / 86_400_000
       : Infinity;

@@ -1,40 +1,73 @@
 import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
-import { crossRate } from "@/lib/money";
 import { getDefaultCurrency } from "./settings";
 
 export const FX_STALE_DAYS = 3;
 
-/**
- * Rates are stored base=defaultCurrency (1 KWD = rate QUOTE), one row per day.
- * getRateToDefault returns: 1 unit of `currency` = ? units of default currency.
- */
-export async function getRateToDefault(
-  currency: string,
-): Promise<{ rate: Decimal; asOfDate: string | null; stale: boolean }> {
-  const def = await getDefaultCurrency();
-  if (currency === def) return { rate: new Decimal(1), asOfDate: null, stale: false };
-
-  const row = await prisma.fxRate.findFirst({
-    where: { base: def, quote: currency },
-    orderBy: { asOfDate: "desc" },
-  });
-  if (!row) return { rate: new Decimal(0), asOfDate: null, stale: true };
-
-  // stored: 1 DEF = rate CUR → invert
-  const rate = new Decimal(1).div(new Decimal(row.rate.toString()));
-  const ageDays =
-    (Date.now() - new Date(row.asOfDate + "T00:00:00Z").getTime()) / 86_400_000;
-  return { rate, asOfDate: row.asOfDate, stale: ageDays > FX_STALE_DAYS };
+export interface FxInfo {
+  rate: Decimal; // 1 unit of currency = rate units of default currency
+  asOfDate: string | null;
+  stale: boolean;
 }
 
-/** Rate between two arbitrary currencies via the default-currency cross. */
-export async function getRate(from: string, to: string): Promise<Decimal> {
-  if (from === to) return new Decimal(1);
-  const [f, t] = [await getRateToDefault(from), await getRateToDefault(to)];
-  if (f.rate.isZero() || t.rate.isZero()) throw new Error(`No FX rate for ${from}→${to}`);
-  // f.rate: 1 from = f DEF; t.rate: 1 to = t DEF → 1 from = f/t to
-  return crossRate(t.rate, f.rate) as Decimal;
+export interface CurrencyInfo {
+  code: string;
+  exponent: number;
+  symbol: string;
+  isFiat: boolean;
+}
+
+/**
+ * Per-request FX context. Loads settings, currencies, and the latest FX rate
+ * per pair in ONE parallel round-trip, then answers rate lookups from memory.
+ * Every service/route should load this once and pass it down — per-lookup DB
+ * queries were the source of multi-second N+1 latency.
+ */
+export interface FxContext {
+  def: string;
+  defExponent: number;
+  currencies: Map<string, CurrencyInfo>;
+  rateToDefault(code: string): FxInfo;
+}
+
+export async function loadFxContext(): Promise<FxContext> {
+  const [settingRow, currencies, fxRows] = await Promise.all([
+    prisma.setting.findUnique({ where: { key: "defaultCurrency" } }),
+    prisma.currency.findMany({ where: { isActive: true } }),
+    prisma.$queryRaw<{ base: string; quote: string; rate: string; asOfDate: string }[]>`
+      SELECT DISTINCT ON (base, quote) base, quote, rate::text AS rate, "asOfDate"
+      FROM fx_rates
+      ORDER BY base, quote, "asOfDate" DESC`,
+  ]);
+
+  const def = settingRow ? (JSON.parse(settingRow.valueJson) as string) : "KWD";
+  const currencyMap = new Map<string, CurrencyInfo>(
+    currencies.map((c) => [
+      c.code,
+      { code: c.code, exponent: c.exponent, symbol: c.symbol, isFiat: c.isFiat },
+    ]),
+  );
+  const rateMap = new Map(fxRows.filter((r) => r.base === def).map((r) => [r.quote, r]));
+  const one: FxInfo = { rate: new Decimal(1), asOfDate: null, stale: false };
+
+  return {
+    def,
+    defExponent: currencyMap.get(def)?.exponent ?? 3,
+    currencies: currencyMap,
+    rateToDefault(code: string): FxInfo {
+      if (code === def) return one;
+      const row = rateMap.get(code);
+      if (!row) return { rate: new Decimal(0), asOfDate: null, stale: true };
+      // stored: 1 DEF = rate CODE → invert
+      const ageDays =
+        (Date.now() - new Date(row.asOfDate + "T00:00:00Z").getTime()) / 86_400_000;
+      return {
+        rate: new Decimal(1).div(new Decimal(row.rate)),
+        asOfDate: row.asOfDate,
+        stale: ageDays > FX_STALE_DAYS,
+      };
+    },
+  };
 }
 
 /** Fetch latest daily rates (base = default currency) and upsert into fx_rates. */

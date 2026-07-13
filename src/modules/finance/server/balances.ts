@@ -1,8 +1,7 @@
 import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { convertMinor, holdingValueMinor } from "@/lib/money";
-import { getRateToDefault } from "./fx";
-import { getDefaultCurrency } from "./settings";
+import { loadFxContext, type FxContext } from "./fx";
 
 export interface AccountBalance {
   accountId: string;
@@ -12,64 +11,58 @@ export interface AccountBalance {
   /** balance converted to default currency, minor units */
   balanceDefaultMinor: number;
   stale: boolean;
+  isLiability: boolean;
+  includeInNetWorth: boolean;
 }
 
-/** Compute balances for all non-archived accounts (own currency + default-converted). */
-export async function computeBalances(): Promise<AccountBalance[]> {
-  const def = await getDefaultCurrency();
-  const accounts = await prisma.account.findMany({
-    where: { archivedAt: null },
-    include: { currency: true },
-  });
-  const defCurrency = await prisma.currency.findUnique({ where: { code: def } });
-  if (!defCurrency) throw new Error(`Default currency ${def} missing from currencies table`);
+/**
+ * Balances for all non-archived accounts. Exactly two parallel round-trips:
+ * the FxContext (settings+currencies+rates) and the account/sum/quote batch.
+ */
+export async function computeBalances(ctx?: FxContext): Promise<AccountBalance[]> {
+  const fx = ctx ?? (await loadFxContext());
 
-  // Signed sums per account in one query
-  const sums = await prisma.$queryRaw<
-    { accountId: string; total: bigint | null }[]
-  >`
-    SELECT "accountId",
-           SUM(CASE WHEN type IN ('expense','transfer_out') THEN -"amountMinor"
-                    ELSE "amountMinor" END)::bigint AS total
-    FROM transactions
-    GROUP BY "accountId"
-  `;
+  const [accounts, sums, quoteRows] = await Promise.all([
+    prisma.account.findMany({ where: { archivedAt: null } }),
+    prisma.$queryRaw<{ accountId: string; total: bigint | null }[]>`
+      SELECT "accountId",
+             SUM(CASE WHEN type IN ('expense','transfer_out') THEN -"amountMinor"
+                      ELSE "amountMinor" END)::bigint AS total
+      FROM transactions
+      GROUP BY "accountId"`,
+    prisma.$queryRaw<
+      { assetSymbol: string; price: string; quoteCurrency: string; fetchedAt: Date }[]
+    >`
+      SELECT DISTINCT ON ("assetSymbol") "assetSymbol", price::text AS price,
+             "quoteCurrency", "fetchedAt"
+      FROM price_quotes
+      ORDER BY "assetSymbol", "fetchedAt" DESC`,
+  ]);
+
   const sumMap = new Map(sums.map((s) => [s.accountId, Number(s.total ?? 0n)]));
+  const quoteMap = new Map(quoteRows.map((q) => [q.assetSymbol, q]));
 
   const results: AccountBalance[] = [];
   for (const a of accounts) {
+    const exponent = fx.currencies.get(a.currencyCode)?.exponent ?? 2;
     let balanceMinor: number;
     let stale = false;
 
     if (a.kind === "priced") {
-      const quote = a.assetSymbol
-        ? await prisma.priceQuote.findFirst({
-            where: { assetSymbol: a.assetSymbol },
-            orderBy: { fetchedAt: "desc" },
-          })
-        : null;
+      const quote = a.assetSymbol ? quoteMap.get(a.assetSymbol) : undefined;
       if (quote && a.quantity) {
-        // price is in quote.quoteCurrency; convert to account currency if needed
-        let priceMinorInAcct = holdingValueMinor(
-          a.quantity.toString(),
-          quote.price.toString(),
-          a.currency.exponent,
-        );
+        // price is in quote.quoteCurrency; value in account currency
+        let valueMinor = holdingValueMinor(a.quantity.toString(), quote.price, exponent);
         if (quote.quoteCurrency !== a.currencyCode) {
-          const from = await getRateToDefault(quote.quoteCurrency);
-          const to = await getRateToDefault(a.currencyCode);
-          if (to.rate.isZero() || from.rate.isZero()) {
+          const from = fx.rateToDefault(quote.quoteCurrency);
+          const to = fx.rateToDefault(a.currencyCode);
+          if (from.rate.isZero() || to.rate.isZero()) {
             stale = true;
           } else {
-            priceMinorInAcct = convertMinor(
-              priceMinorInAcct,
-              from.rate.div(to.rate),
-              a.currency.exponent,
-              a.currency.exponent,
-            );
+            valueMinor = convertMinor(valueMinor, from.rate.div(to.rate), exponent, exponent);
           }
         }
-        balanceMinor = priceMinorInAcct;
+        balanceMinor = valueMinor;
         const ageMs = Date.now() - quote.fetchedAt.getTime();
         const staleMs = a.subtype === "crypto" ? 3_600_000 : 86_400_000;
         stale = stale || ageMs > staleMs;
@@ -88,14 +81,14 @@ export async function computeBalances(): Promise<AccountBalance[]> {
     }
 
     let balanceDefaultMinor: number;
-    if (a.currencyCode === def) {
+    if (a.currencyCode === fx.def) {
       balanceDefaultMinor = balanceMinor;
     } else {
-      const fx = await getRateToDefault(a.currencyCode);
-      stale = stale || fx.stale;
-      balanceDefaultMinor = fx.rate.isZero()
+      const rate = fx.rateToDefault(a.currencyCode);
+      stale = stale || rate.stale;
+      balanceDefaultMinor = rate.rate.isZero()
         ? 0
-        : convertMinor(balanceMinor, fx.rate, a.currency.exponent, defCurrency.exponent);
+        : convertMinor(balanceMinor, rate.rate, exponent, fx.defExponent);
     }
 
     results.push({
@@ -104,6 +97,8 @@ export async function computeBalances(): Promise<AccountBalance[]> {
       currencyCode: a.currencyCode,
       balanceDefaultMinor,
       stale,
+      isLiability: a.isLiability,
+      includeInNetWorth: a.includeInNetWorth,
     });
   }
   return results;
@@ -116,22 +111,15 @@ export interface NetPosition {
   anyStale: boolean;
 }
 
-export async function computeNetPosition(): Promise<NetPosition> {
-  const accounts = await prisma.account.findMany({
-    where: { archivedAt: null, includeInNetWorth: true },
-    select: { id: true, isLiability: true },
-  });
-  const included = new Map(accounts.map((a) => [a.id, a]));
-  const balances = await computeBalances();
-
+/** Pure aggregation over already-computed balances. */
+export function netPositionFromBalances(balances: AccountBalance[]): NetPosition {
   let assets = 0;
   let liabilities = 0;
   let anyStale = false;
   for (const b of balances) {
-    const acct = included.get(b.accountId);
-    if (!acct) continue;
+    if (!b.includeInNetWorth) continue;
     anyStale = anyStale || b.stale;
-    if (acct.isLiability) {
+    if (b.isLiability) {
       liabilities += Math.max(0, -b.balanceDefaultMinor);
       // a liability account in positive balance counts as an asset
       assets += Math.max(0, b.balanceDefaultMinor);
@@ -147,4 +135,8 @@ export async function computeNetPosition(): Promise<NetPosition> {
     netDefaultMinor: assets - liabilities,
     anyStale,
   };
+}
+
+export async function computeNetPosition(ctx?: FxContext): Promise<NetPosition> {
+  return netPositionFromBalances(await computeBalances(ctx));
 }

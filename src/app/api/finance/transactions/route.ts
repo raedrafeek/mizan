@@ -4,8 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, parseAmount } from "@/lib/money";
 import { transactionCreateSchema } from "@/lib/schemas/finance";
-import { getRateToDefault } from "@/modules/finance/server/fx";
-import { getDefaultCurrency } from "@/modules/finance/server/settings";
+import { loadFxContext } from "@/modules/finance/server/fx";
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -40,10 +39,10 @@ export async function POST(req: NextRequest) {
   }
   const input = parsed.data;
 
-  const account = await prisma.account.findUnique({
-    where: { id: input.accountId },
-    include: { currency: true },
-  });
+  const [account, fx] = await Promise.all([
+    prisma.account.findUnique({ where: { id: input.accountId } }),
+    loadFxContext(),
+  ]);
   if (!account) return NextResponse.json({ error: "Account not found" }, { status: 400 });
   if (account.kind === "priced") {
     return NextResponse.json(
@@ -51,32 +50,24 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  const def = await getDefaultCurrency();
-  const defExponent =
-    (await prisma.currency.findUnique({ where: { code: def } }))?.exponent ?? 3;
-  const amountMinor = parseAmount(input.amount, account.currency.exponent);
+  const exponent = fx.currencies.get(account.currencyCode)?.exponent ?? 2;
+  const amountMinor = parseAmount(input.amount, exponent);
 
   // freeze the FX rate at entry (manual override wins)
   let rate: Decimal;
   if (input.fxRateToDefault) {
     rate = new Decimal(input.fxRateToDefault);
   } else {
-    const fx = await getRateToDefault(account.currencyCode);
-    if (fx.rate.isZero()) {
+    const info = fx.rateToDefault(account.currencyCode);
+    if (info.rate.isZero()) {
       return NextResponse.json(
         { error: `No FX rate cached for ${account.currencyCode}. Run the FX refresh or enter a manual rate.` },
         { status: 409 },
       );
     }
-    rate = fx.rate;
+    rate = info.rate;
   }
-  const amountDefaultMinor = convertMinor(
-    amountMinor,
-    rate,
-    account.currency.exponent,
-    defExponent,
-  );
+  const amountDefaultMinor = convertMinor(amountMinor, rate, exponent, fx.defExponent);
 
   // --- transfers create both legs atomically ---
   if (input.type === "transfer_out" || input.type === "transfer_in") {
@@ -85,24 +76,23 @@ export async function POST(req: NextRequest) {
     }
     const counter = await prisma.account.findUnique({
       where: { id: input.counterAccountId },
-      include: { currency: true },
     });
     if (!counter || counter.kind === "priced") {
       return NextResponse.json({ error: "Invalid counter account" }, { status: 400 });
     }
-    // counter-leg amount in the counter account's currency
-    const counterFx = await getRateToDefault(counter.currencyCode);
-    if (counterFx.rate.isZero()) {
+    const counterInfo = fx.rateToDefault(counter.currencyCode);
+    if (counterInfo.rate.isZero()) {
       return NextResponse.json(
         { error: `No FX rate cached for ${counter.currencyCode}` },
         { status: 409 },
       );
     }
+    const counterExponent = fx.currencies.get(counter.currencyCode)?.exponent ?? 2;
     const counterAmountMinor = convertMinor(
       amountDefaultMinor,
-      new Decimal(1).div(counterFx.rate),
-      defExponent,
-      counter.currency.exponent,
+      new Decimal(1).div(counterInfo.rate),
+      fx.defExponent,
+      counterExponent,
     );
     const groupId = crypto.randomUUID();
     const [out] = await prisma.$transaction([
@@ -125,7 +115,7 @@ export async function POST(req: NextRequest) {
           type: "transfer_in",
           amountMinor: BigInt(counterAmountMinor),
           currencyCode: counter.currencyCode,
-          fxRateToDefault: counterFx.rate.toString(),
+          fxRateToDefault: counterInfo.rate.toString(),
           amountDefaultMinor: BigInt(amountDefaultMinor),
           date: input.date,
           note: input.note,

@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, minorToDecimalString, parseAmount } from "@/lib/money";
 import { scheduledItemUpdateSchema } from "@/lib/schemas/finance";
-import { getRateToDefault } from "@/modules/finance/server/fx";
-import { getDefaultCurrency } from "@/modules/finance/server/settings";
+import { loadFxContext } from "@/modules/finance/server/fx";
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -78,44 +76,40 @@ async function logItem(id: string) {
       { status: 400 },
     );
   }
-  const account = await prisma.account.findUnique({
-    where: { id: item.accountId },
-    include: { currency: true },
-  });
+  const [account, fx] = await Promise.all([
+    prisma.account.findUnique({ where: { id: item.accountId } }),
+    loadFxContext(),
+  ]);
   if (!account || account.kind === "priced") {
     return NextResponse.json({ error: "Item's account is invalid" }, { status: 400 });
   }
+  const acctExponent = fx.currencies.get(account.currencyCode)?.exponent ?? 2;
 
   // item amount is in item.currencyCode; convert to the account currency if different
   let amountMinor = Number(item.amountMinor);
-  const itemCurrency = await prisma.currency.findUnique({
-    where: { code: item.currencyCode },
-  });
   if (item.currencyCode !== account.currencyCode) {
-    const from = await getRateToDefault(item.currencyCode);
-    const to = await getRateToDefault(account.currencyCode);
+    const from = fx.rateToDefault(item.currencyCode);
+    const to = fx.rateToDefault(account.currencyCode);
     if (from.rate.isZero() || to.rate.isZero()) {
       return NextResponse.json({ error: "Missing FX rate for conversion" }, { status: 409 });
     }
     amountMinor = convertMinor(
       amountMinor,
       from.rate.div(to.rate),
-      itemCurrency?.exponent ?? 2,
-      account.currency.exponent,
+      fx.currencies.get(item.currencyCode)?.exponent ?? 2,
+      acctExponent,
     );
   }
 
-  const def = await getDefaultCurrency();
-  const defExp = (await prisma.currency.findUnique({ where: { code: def } }))?.exponent ?? 3;
-  const fx = await getRateToDefault(account.currencyCode);
-  if (fx.rate.isZero()) {
+  const acctRate = fx.rateToDefault(account.currencyCode);
+  if (acctRate.rate.isZero()) {
     return NextResponse.json({ error: `No FX rate for ${account.currencyCode}` }, { status: 409 });
   }
   const amountDefaultMinor = convertMinor(
     amountMinor,
-    fx.rate,
-    account.currency.exponent,
-    defExp,
+    acctRate.rate,
+    acctExponent,
+    fx.defExponent,
   );
   const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
 
@@ -126,7 +120,7 @@ async function logItem(id: string) {
         type: item.direction === "outflow" ? "expense" : "income",
         amountMinor: BigInt(amountMinor),
         currencyCode: account.currencyCode,
-        fxRateToDefault: new Decimal(fx.rate).toString(),
+        fxRateToDefault: acctRate.rate.toString(),
         amountDefaultMinor: BigInt(amountDefaultMinor),
         categoryId: item.categoryId,
         date: today,
@@ -151,6 +145,6 @@ async function logItem(id: string) {
     });
   }
   return NextResponse.json(
-    jsonSafe({ logged: true, transactionId: txn.id, amountMinor: Number(txn.amountMinor), display: minorToDecimalString(amountMinor, account.currency.exponent) }),
+    jsonSafe({ logged: true, transactionId: txn.id, amountMinor: Number(txn.amountMinor), display: minorToDecimalString(amountMinor, acctExponent) }),
   );
 }
