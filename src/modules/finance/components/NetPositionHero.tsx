@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
+import { masked, usePrivacy } from "@/shell/privacy";
 import { useCurrencies } from "../api/hooks";
 import { useNetWorth, useRefreshPrices } from "../api/hooks-m2";
 
@@ -24,6 +25,7 @@ export function NetPositionHero() {
   const { data } = useNetWorth();
   const { data: currencyData } = useCurrencies();
   const refresh = useRefreshPrices();
+  const { privacy } = usePrivacy();
 
   const exponent =
     currencyData?.currencies.find((c) => c.code === currencyData.defaultCurrency)
@@ -62,7 +64,7 @@ export function NetPositionHero() {
           </button>
         </p>
         <p className="num text-4xl font-semibold leading-none tracking-tight sm:text-5xl">
-          {formatMinor(current.netDefaultMinor, exponent)}{" "}
+          {masked(privacy, formatMinor(current.netDefaultMinor, exponent))}{" "}
           <span className="text-lg font-medium text-faint sm:text-xl">{def}</span>
         </p>
         {series && series.days > 0 && (
@@ -73,7 +75,7 @@ export function NetPositionHero() {
             )}
           >
             {up ? "+" : "−"}
-            {formatMinor(Math.abs(series.delta), exponent)}
+            {masked(privacy, formatMinor(Math.abs(series.delta), exponent))}
             {series.deltaPct !== null && (
               <> {up ? "▲" : "▼"} {Math.abs(series.deltaPct).toFixed(1)}%</>
             )}
@@ -87,19 +89,19 @@ export function NetPositionHero() {
       <div className="flex min-w-[230px] flex-col gap-2.5 text-[13px]">
         <p className="flex justify-between gap-8">
           <span className="text-muted">Assets</span>
-          <span className="num text-ink">{formatMinor(current.assetsDefaultMinor, exponent)}</span>
+          <span className="num text-ink">{masked(privacy, formatMinor(current.assetsDefaultMinor, exponent))}</span>
         </p>
         <p className="flex justify-between gap-8">
           <span className="text-muted">Liabilities</span>
           <span className="num text-neg">
-            {current.liabilitiesDefaultMinor > 0 ? "−" : ""}
-            {formatMinor(current.liabilitiesDefaultMinor, exponent)}
+            {current.liabilitiesDefaultMinor > 0 && !privacy ? "−" : ""}
+            {masked(privacy, formatMinor(current.liabilitiesDefaultMinor, exponent))}
           </span>
         </p>
         <p className="flex justify-between gap-8 border-t border-border pt-2.5">
           <span className="font-semibold text-ink">Net</span>
           <span className={cn("num font-semibold", up ? "text-pos" : "text-ink")}>
-            {formatMinor(current.netDefaultMinor, exponent)}
+            {masked(privacy, formatMinor(current.netDefaultMinor, exponent))}
           </span>
         </p>
       </div>
@@ -131,7 +133,7 @@ export function NetPositionHero() {
               <span className="inline-block w-3 border-t-[1.5px] border-dashed border-neg" /> LIAB
             </span>
             <span className="ml-auto">
-              {series.days}D · FROM {formatMinor(series.first, exponent)}
+              {series.days}D · FROM {masked(privacy, formatMinor(series.first, exponent))}
             </span>
           </p>
         </div>

@@ -8,10 +8,20 @@ import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/600.css";
 import "./globals.css";
 import { Providers } from "./providers";
+import { RegisterSW } from "./register-sw";
 
 export const metadata: Metadata = {
   title: "Mizan",
   description: "Personal finance, balanced.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Mizan",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -25,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen bg-surface antialiased">
         <Providers>{children}</Providers>
+        <RegisterSW />
       </body>
     </html>
   );

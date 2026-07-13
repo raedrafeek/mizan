@@ -57,6 +57,23 @@ Postgres. Dark UI based on the Decision Dashboard mockup in `../Reference/`.
 | `npm test` | vitest (money math + services) |
 | `npm run db:push` | sync Prisma schema to the database |
 | `npm run db:seed` | seed currencies/categories/settings |
+| `npm run backup` | dump all data to `backups/mizan-backup-<ts>.json` |
+
+## Backups
+
+Run `npm run backup` periodically (weekly is plenty) — it writes a complete JSON
+dump of every table to `backups/`. Keep a copy outside this machine (it's
+already inside OneDrive, which counts). Supabase also keeps its own daily
+backups on paid plans; the JSON dump is the belt-and-braces copy you own.
+
+## PWA / phone
+
+The app is installable: open the deployed URL → browser menu → Add to Home
+Screen. The installed app opens standalone with the Mizan icon; `/log` is the
+long-press shortcut for one-handed quick logging. A service worker serves the
+last-known data when offline (logging still requires a connection). Press `/`
+anywhere on desktop to jump to the amount field, and use the eye icon in the
+nav to mask all balances (privacy mode).
 
 ## Architecture notes
 

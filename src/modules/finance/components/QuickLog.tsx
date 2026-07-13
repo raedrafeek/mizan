@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Decimal from "decimal.js";
 import { cn } from "@/lib/cn";
 import { parseAmount, convertMinor, formatMinor } from "@/lib/money";
@@ -31,6 +31,20 @@ export function QuickLog({
   const { data: categories } = useCategories();
   const { data: currencyData } = useCurrencies();
   const create = useCreateTransaction();
+  const amountRef = useRef<HTMLInputElement>(null);
+
+  // "/" anywhere focuses the amount input
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "/") return;
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return;
+      e.preventDefault();
+      amountRef.current?.focus();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const rail = useMemo(
     () => (categories ?? []).filter((c) => c.type === mode),
@@ -120,6 +134,7 @@ export function QuickLog({
 
         {/* amount */}
         <input
+          ref={amountRef}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && commit()}

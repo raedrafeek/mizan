@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
 import { fmt } from "@/lib/format-money";
+import { masked, usePrivacy } from "@/shell/privacy";
 import {
   useAccounts,
   useCreateAccount,
@@ -61,6 +62,7 @@ function AccountRow({
 }) {
   const update = useUpdateAccount();
   const del = useDeleteAccount();
+  const { privacy } = usePrivacy();
   const [editingQty, setEditingQty] = useState(false);
   const [qty, setQty] = useState(a.quantity ?? "0");
 
@@ -96,13 +98,13 @@ function AccountRow({
           (a.balance?.balanceMinor ?? 0) < 0 ? "text-neg" : "text-ink",
         )}
       >
-        {a.balance ? fmt(a.balance.balanceMinor, a.currency) : "—"}{" "}
+        {a.balance ? masked(privacy, fmt(a.balance.balanceMinor, a.currency)) : "—"}{" "}
         <span className="text-xs font-medium text-faint">{a.currencyCode}</span>
         {a.balance?.stale && <span className="ml-2 text-[10px] text-warn">stale</span>}
       </p>
       {a.balance && a.currencyCode !== defaultCurrency && (
         <p className="num mt-0.5 text-[10.5px] text-faint">
-          ≈ {fmt(a.balance.balanceDefaultMinor, { exponent: 3 })} {defaultCurrency}
+          ≈ {masked(privacy, fmt(a.balance.balanceDefaultMinor, { exponent: 3 }))} {defaultCurrency}
         </p>
       )}
 

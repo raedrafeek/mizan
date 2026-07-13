@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { fmt } from "@/lib/format-money";
+import { masked, usePrivacy } from "@/shell/privacy";
 import type { AccountDto } from "../types";
 import { Icon } from "./Icon";
 
@@ -19,6 +20,7 @@ export function AccountsStrip({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const { privacy } = usePrivacy();
   return (
     <div className="relative">
       <div className="hs flex gap-3.5 overflow-x-auto px-1 py-1">
@@ -59,14 +61,14 @@ export function AccountsStrip({
                   negative ? "text-neg" : "text-ink",
                 )}
               >
-                {bal ? fmt(bal.balanceMinor, a.currency) : "—"}
+                {bal ? masked(privacy, fmt(bal.balanceMinor, a.currency)) : "—"}
               </span>
               <span className="num mt-1 block h-[13px] text-[10.5px] text-faint">
                 {a.currencyCode}
                 {bal && a.currencyCode !== defaultCurrency && (
                   <>
                     {" "}
-                    · ≈ {fmt(bal.balanceDefaultMinor, { exponent: defaultExponent })}{" "}
+                    · ≈ {masked(privacy, fmt(bal.balanceDefaultMinor, { exponent: defaultExponent }))}{" "}
                     {defaultCurrency}
                   </>
                 )}

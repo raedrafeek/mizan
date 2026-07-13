@@ -6,9 +6,11 @@ import { cn } from "@/lib/cn";
 import { getNavItems } from "./module-registry";
 import { FxTicker } from "@/modules/finance/components/FxTicker";
 import { AlertTray } from "./AlertTray";
+import { usePrivacy } from "./privacy";
 
 export function Nav() {
   const pathname = usePathname();
+  const { privacy, toggle } = usePrivacy();
   const items = [{ label: "Home", href: "/" }, ...getNavItems()];
 
   return (
@@ -43,6 +45,22 @@ export function Nav() {
       <div className="hidden md:block">
         <FxTicker />
       </div>
+      <button
+        onClick={toggle}
+        className={privacy ? "flex text-warn" : "flex text-muted hover:text-ink"}
+        aria-label={privacy ? "Show balances" : "Hide balances"}
+        title={privacy ? "Privacy mode ON" : "Privacy mode"}
+      >
+        {privacy ? (
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 3l18 18 M10.5 10.7a2.2 2.2 0 0 0 3 3.1 M7.4 7.5C4.9 8.9 3 12 3 12s3.5 6 9 6c1.6 0 3-.5 4.3-1.2 M11 6.06A9.8 9.8 0 0 1 12 6c5.5 0 9 6 9 6s-.8 1.4-2.2 2.8" />
+          </svg>
+        ) : (
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z M12 9.8a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 1 0 0-4.4" />
+          </svg>
+        )}
+      </button>
       <AlertTray />
     </header>
   );
