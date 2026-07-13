@@ -62,6 +62,19 @@ export function Nav() {
         )}
       </button>
       <AlertTray />
+      <button
+        onClick={async () => {
+          await fetch("/api/auth/logout", { method: "POST" });
+          window.location.href = "/login";
+        }}
+        className="flex text-muted hover:text-ink"
+        aria-label="Lock app"
+        title="Lock"
+      >
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4 M12 15v2.5" />
+        </svg>
+      </button>
     </header>
   );
 }

@@ -59,6 +59,13 @@ Postgres. Dark UI based on the Decision Dashboard mockup in `../Reference/`.
 | `npm run db:seed` | seed currencies/categories/settings |
 | `npm run backup` | dump all data to `backups/mizan-backup-<ts>.json` |
 
+## Lock screen
+
+Set `APP_PASSWORD` and `AUTH_SECRET` (any long random string) in Vercel env
+vars and redeploy — every page and API then requires login (90-day session
+cookie; cron routes keep their own bearer auth). Leave `APP_PASSWORD` empty
+locally to skip the lock on localhost. The padlock icon in the nav logs out.
+
 ## Backups
 
 Run `npm run backup` periodically (weekly is plenty) — it writes a complete JSON
