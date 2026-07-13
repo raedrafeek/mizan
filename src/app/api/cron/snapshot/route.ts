@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { computeBalances, computeNetPosition } from "@/modules/finance/server/balances";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(req: NextRequest) {
+  const auth = req.headers.get("authorization");
+  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    // Kuwait time (UTC+3) date — cron fires 20:55 UTC = 23:55 AST
+    const date = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+    const [net, balances] = await Promise.all([computeNetPosition(), computeBalances()]);
+    await prisma.netWorthSnapshot.upsert({
+      where: { date },
+      update: {
+        assetsDefaultMinor: BigInt(net.assetsDefaultMinor),
+        liabilitiesDefaultMinor: BigInt(net.liabilitiesDefaultMinor),
+        netDefaultMinor: BigInt(net.netDefaultMinor),
+        breakdownJson: JSON.stringify(balances),
+      },
+      create: {
+        date,
+        assetsDefaultMinor: BigInt(net.assetsDefaultMinor),
+        liabilitiesDefaultMinor: BigInt(net.liabilitiesDefaultMinor),
+        netDefaultMinor: BigInt(net.netDefaultMinor),
+        breakdownJson: JSON.stringify(balances),
+      },
+    });
+    return NextResponse.json({ ok: true, date, net: net.netDefaultMinor });
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : String(e) },
+      { status: 500 },
+    );
+  }
+}

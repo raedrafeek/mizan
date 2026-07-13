@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ------------------------------------------------------------------
+// Reference data
+// ------------------------------------------------------------------
+
+model Currency {
+  code     String  @id // "KWD", "USD", "INR", "BTC"...
+  name     String
+  symbol   String
+  exponent Int // minor-unit decimals: KWD=3, USD=2, BTC=8
+  isFiat   Boolean @default(true)
+  isActive Boolean @default(true)
+
+  accounts     Account[]
+  transactions Transaction[]
+
+  @@map("currencies")
+}
+
+// ------------------------------------------------------------------
+// Accounts — everything that contributes to net worth
+// ------------------------------------------------------------------
+
+enum AccountKind {
+  transactional // balance driven by logged transactions
+  priced // quantity x live market price (crypto, stocks)
+}
+
+enum AccountSubtype {
+  bank
+  cash
+  credit_card
+  crypto
+  stock
+  loan
+  other
+}
+
+enum PriceSource {
+  coingecko
+  finnhub
+  manual
+}
+
+model Account {
+  id                  String         @id @default(cuid())
+  name                String
+  kind                AccountKind
+  subtype             AccountSubtype
+  currencyCode        String
+  isLiability         Boolean        @default(false)
+  includeInNetWorth   Boolean        @default(true)
+  // transactional accounts
+  openingBalanceMinor BigInt         @default(0)
+  // priced accounts
+  assetSymbol         String? // coingecko id ("bitcoin") or ticker ("AAPL")
+  quantity            Decimal?       @db.Decimal(30, 12)
+  priceSource         PriceSource?
+  manualPriceMinor    BigInt? // manual price override, in currencyCode minor units
+  // presentation
+  icon                String         @default("bank")
+  mask                String? // "•••• 4471"
+  sortOrder           Int            @default(0)
+  archivedAt          DateTime?
+  createdAt           DateTime       @default(now())
+
+  currency     Currency      @relation(fields: [currencyCode], references: [code])
+  transactions Transaction[]
+
+  @@map("accounts")
+}
+
+// ------------------------------------------------------------------
+// Transactions
+// ------------------------------------------------------------------
+
+enum TransactionType {
+  expense
+  income
+  transfer_out
+  transfer_in
+  adjustment
+}
+
+model Transaction {
+  id                 String          @id @default(cuid())
+  accountId          String
+  type               TransactionType
+  // always positive; sign derived from type
+  amountMinor        BigInt
+  currencyCode       String // denormalized = account currency at entry
+  // frozen at entry (editable): 1 unit of currencyCode = fxRateToDefault units of default currency
+  fxRateToDefault    Decimal         @db.Decimal(24, 12)
+  amountDefaultMinor BigInt
+  categoryId         String?
+  date               String // "YYYY-MM-DD"
+  note               String?
+  transferGroupId    String? // links the two legs of a transfer
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  currency Currency  @relation(fields: [currencyCode], references: [code])
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  @@index([accountId, date])
+  @@index([date])
+  @@index([categoryId, date])
+  @@map("transactions")
+}
+
+// ------------------------------------------------------------------
+// Categories & budgets
+// ------------------------------------------------------------------
+
+enum CategoryType {
+  expense
+  income
+}
+
+model Category {
+  id         String       @id @default(cuid())
+  module     String       @default("finance")
+  name       String
+  type       CategoryType
+  icon       String       @default("other")
+  color      String?
+  sortOrder  Int          @default(0)
+  archivedAt DateTime?
+
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@map("categories")
+}
+
+model Budget {
+  id                 String  @id @default(cuid())
+  categoryId         String
+  amountDefaultMinor BigInt // monthly budget, in default currency
+  startMonth         String // "2026-07"
+  endMonth           String? // null = open-ended
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@map("budgets")
+}
+
+// ------------------------------------------------------------------
+// Campaigns (savings goals) & Financial Horizon (scheduled items)
+// ------------------------------------------------------------------
+
+enum CampaignStatus {
+  active
+  paused
+  done
+  abandoned
+}
+
+model Campaign {
+  id                  String         @id @default(cuid())
+  name                String
+  targetDefaultMinor  BigInt
+  targetDate          String? // "YYYY-MM-DD"
+  linkedAccountId     String? // progress = that account's balance
+  manualProgressMinor BigInt? // or manually tracked progress
+  status              CampaignStatus @default(active)
+  createdAt           DateTime       @default(now())
+
+  @@map("campaigns")
+}
+
+enum ScheduledDirection {
+  inflow
+  outflow
+}
+
+enum ScheduledStatus {
+  pending
+  logged
+  skipped
+}
+
+enum Recurrence {
+  monthly
+  yearly
+}
+
+model ScheduledItem {
+  id                  String             @id @default(cuid())
+  name                String
+  direction           ScheduledDirection
+  amountMinor         BigInt
+  currencyCode        String
+  dueDate             String // "YYYY-MM-DD"
+  recurrence          Recurrence? // null = one-off
+  accountId           String?
+  categoryId          String?
+  alertDaysBefore     Int                @default(7)
+  status              ScheduledStatus    @default(pending)
+  loggedTransactionId String?
+
+  @@index([dueDate, status])
+  @@map("scheduled_items")
+}
+
+// ------------------------------------------------------------------
+// Market data caches
+// ------------------------------------------------------------------
+
+model FxRate {
+  base      String
+  quote     String
+  rate      Decimal  @db.Decimal(24, 12) // 1 base = rate quote
+  asOfDate  String // "YYYY-MM-DD"
+  fetchedAt DateTime @default(now())
+
+  @@id([base, quote, asOfDate])
+  @@index([base, quote])
+  @@map("fx_rates")
+}
+
+model PriceQuote {
+  assetSymbol   String
+  source        String
+  price         Decimal  @db.Decimal(30, 12)
+  quoteCurrency String // currency of the price ("USD")
+  fetchedAt     DateTime @default(now())
+
+  @@id([assetSymbol, fetchedAt])
+  @@map("price_quotes")
+}
+
+// ------------------------------------------------------------------
+// Net worth history
+// ------------------------------------------------------------------
+
+model NetWorthSnapshot {
+  date                    String @id // "YYYY-MM-DD"
+  assetsDefaultMinor      BigInt
+  liabilitiesDefaultMinor BigInt // stored positive
+  netDefaultMinor         BigInt
+  breakdownJson           String // per-account values at snapshot time
+
+  @@map("net_worth_snapshots")
+}
+
+// ------------------------------------------------------------------
+// Alerts (module-agnostic) & settings
+// ------------------------------------------------------------------
+
+model Alert {
+  id          String    @id @default(cuid())
+  module      String    @default("finance")
+  kind        String // "budget_pace" | "horizon_due" | "stale_price" | ...
+  severity    String    @default("warn") // "info" | "warn" | "critical"
+  title       String
+  body        String?
+  entityRef   String? // e.g. "budget:<id>"
+  dedupeKey   String    @unique
+  createdAt   DateTime  @default(now())
+  dismissedAt DateTime?
+
+  @@map("alerts")
+}
+
+model Setting {
+  key       String @id
+  valueJson String
+
+  @@map("settings")
+}

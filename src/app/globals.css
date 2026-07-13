@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  /* Mizan dark palette — from Reference/Decision Dashboard mockup */
+  --color-bg: #060708;
+  --color-surface: #0b0c0e;
+  --color-card: #101215;
+  --color-card-hover: #15181c;
+  --color-inset: #16191d;
+  --color-inset-2: #1c2026;
+  --color-border: #1b1e23;
+  --color-border-2: #1e2228;
+  --color-border-3: #22262d;
+  --color-border-4: #262b32;
+  --color-border-5: #2a2f37;
+  --color-ink: #eceff3;
+  --color-ink-2: #c6ccd4;
+  --color-muted: #99a1ac;
+  --color-faint: #5c6470;
+  --color-ghost: #3a4048;
+  --color-pos: #35d07f;
+  --color-neg: #f0544c;
+  --color-warn: #f2a93b;
+
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html {
+  background: var(--color-bg);
+  color-scheme: dark;
+}
+
+body {
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+}
+
+/* hide scrollbars on horizontal strips */
+.hs {
+  scrollbar-width: none;
+}
+.hs::-webkit-scrollbar {
+  display: none;
+}
+
+input::placeholder {
+  color: var(--color-faint);
+}
