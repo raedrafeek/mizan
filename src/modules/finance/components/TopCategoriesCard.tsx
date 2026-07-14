@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card } from "@/shell/Card";
 import { CardSkeleton } from "@/shell/Skeleton";
 import { cn } from "@/lib/cn";
@@ -69,7 +70,16 @@ export function TopCategoriesCard({ month }: { month: string }) {
             <div key={c.categoryId}>
               <div className="mb-1 flex justify-between text-[11.5px]">
                 <span className="min-w-0 font-medium text-muted">
-                  {c.name}{" "}
+                  {c.categoryId !== "none" ? (
+                    <Link
+                      href={`/finance/transactions?categoryId=${c.categoryId}&month=${month}`}
+                      className="hover:text-ink hover:underline"
+                    >
+                      {c.name}
+                    </Link>
+                  ) : (
+                    c.name
+                  )}{" "}
                   {over && (
                     <span className="num whitespace-nowrap text-[9px] font-bold tracking-[1px] text-neg">
                       OVER +{formatMinor(c.spentDefaultMinor - c.budgetDefaultMinor!, exponent)}

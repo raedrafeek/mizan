@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
+import { masked, usePrivacy } from "@/shell/privacy";
 import { useAccounts, useCategories, useCurrencies } from "../api/hooks";
 import {
   useCreateHorizonItem,
@@ -46,6 +47,7 @@ export function HorizonCard() {
 
 function HorizonRow({ item: h }: { item: HorizonItemDto }) {
   const { data: currencyData } = useCurrencies();
+  const { privacy } = usePrivacy();
   const log = useLogHorizonItem();
   const del = useDeleteHorizonItem();
   const [err, setErr] = useState<string | null>(null);
@@ -90,7 +92,7 @@ function HorizonRow({ item: h }: { item: HorizonItemDto }) {
         </span>
         <span className={cn("num text-[12.5px]", out ? "text-neg" : "text-pos")}>
           {out ? "−" : "+"}
-          {formatMinor(h.amountMinor, exponent)} {h.currencyCode}
+          {masked(privacy, formatMinor(h.amountMinor, exponent))} {h.currencyCode}
         </span>
         <span className="touch-show-flex hidden flex-col gap-1 group-hover:flex">
           <button

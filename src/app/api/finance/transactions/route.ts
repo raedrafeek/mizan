@@ -12,11 +12,15 @@ export async function GET(req: NextRequest) {
   const cursor = sp.get("cursor");
   const accountId = sp.get("accountId") ?? undefined;
   const month = sp.get("month") ?? undefined; // "2026-07"
+  const categoryId = sp.get("categoryId") ?? undefined;
+  const q = sp.get("q")?.trim() || undefined; // free-text note search
 
   const transactions = await prisma.transaction.findMany({
     where: {
       accountId,
+      categoryId,
       ...(month ? { date: { startsWith: month } } : {}),
+      ...(q ? { note: { contains: q, mode: "insensitive" } } : {}),
     },
     include: { category: true, account: { select: { name: true, currencyCode: true } } },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],

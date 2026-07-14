@@ -4,6 +4,7 @@ import { Card } from "@/shell/Card";
 import { CardSkeleton } from "@/shell/Skeleton";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
+import { masked, usePrivacy } from "@/shell/privacy";
 import { todayISO } from "@/lib/format-money";
 import { useCurrencies } from "../api/hooks";
 import { useCashFlow } from "../api/hooks-m2";
@@ -54,6 +55,7 @@ export function CashFlowCard({
 }) {
   const { data } = useCashFlow(month);
   const { data: currencyData } = useCurrencies();
+  const { privacy } = usePrivacy();
   const exponent =
     currencyData?.currencies.find((c) => c.code === currencyData.defaultCurrency)
       ?.exponent ?? 3;
@@ -86,24 +88,24 @@ export function CashFlowCard({
       <div className="flex flex-col gap-2 text-[12.5px]">
         <p className="flex justify-between">
           <span className="text-muted">Income</span>
-          <span className="num text-pos">+{formatMinor(cf.incomeDefaultMinor, exponent)}</span>
+          <span className="num text-pos">+{masked(privacy, formatMinor(cf.incomeDefaultMinor, exponent))}</span>
         </p>
         {cf.incomeByCategory.length > 0 && (
           <p className="num -mt-1 text-right text-[10px] text-faint">
             {cf.incomeByCategory
               .slice(0, 3)
-              .map((c) => `${c.name} ${formatMinor(c.totalDefaultMinor, exponent)}`)
+              .map((c) => `${c.name} ${masked(privacy, formatMinor(c.totalDefaultMinor, exponent))}`)
               .join(" · ")}
           </p>
         )}
         <p className="flex justify-between">
           <span className="text-muted">Expense</span>
-          <span className="num text-neg">−{formatMinor(cf.expenseDefaultMinor, exponent)}</span>
+          <span className="num text-neg">−{masked(privacy, formatMinor(cf.expenseDefaultMinor, exponent))}</span>
         </p>
         <p className="flex justify-between">
           <span className="text-muted">Savings</span>
           <span className={cn("num", cf.savingsDefaultMinor < 0 ? "text-neg" : "text-ink")}>
-            {formatMinor(cf.savingsDefaultMinor, exponent)}
+            {masked(privacy, formatMinor(cf.savingsDefaultMinor, exponent))}
           </span>
         </p>
         {cf.savingsRatePct !== null && (
@@ -118,8 +120,8 @@ export function CashFlowCard({
           <p className="flex justify-between">
             <span className="text-muted">Budget left</span>
             <span className={cn("num", budgetLeft < 0 ? "text-neg" : "text-warn")}>
-              {formatMinor(budgetLeft, exponent)}{" "}
-              <span className="text-faint">/ {formatMinor(totalBudget, exponent)}</span>
+              {masked(privacy, formatMinor(budgetLeft, exponent))}{" "}
+              <span className="text-faint">/ {masked(privacy, formatMinor(totalBudget, exponent))}</span>
             </span>
           </p>
         )}

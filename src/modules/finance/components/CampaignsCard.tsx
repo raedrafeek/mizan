@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
+import { masked, usePrivacy } from "@/shell/privacy";
 import { useAccounts, useCurrencies } from "../api/hooks";
 import {
   useCampaigns,
@@ -58,6 +59,7 @@ function chipFor(g: CampaignDto): { label: string; cls: string } {
 
 function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
   const { data: currencyData } = useCurrencies();
+  const { privacy } = usePrivacy();
   const update = useUpdateCampaign();
   const del = useDeleteCampaign();
   const exponent =
@@ -107,8 +109,8 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
         )}
       </div>
       <p className="num mt-1.5 text-[10px] text-faint">
-        {formatMinor(g.progressMinor, exponent)} <span className="text-ghost">/</span>{" "}
-        {formatMinor(g.targetDefaultMinor, exponent)} {currencyData?.defaultCurrency}
+        {masked(privacy, formatMinor(g.progressMinor, exponent))} <span className="text-ghost">/</span>{" "}
+        {masked(privacy, formatMinor(g.targetDefaultMinor, exponent))} {currencyData?.defaultCurrency}
         {g.targetDate && ` · by ${g.targetDate}`}
         {g.linkedAccountId && " · linked"}
       </p>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { CardSkeleton } from "@/shell/Skeleton";
+import { masked, usePrivacy } from "@/shell/privacy";
 import { fmt } from "@/lib/format-money";
 import {
   useCategories,
@@ -10,6 +11,7 @@ import {
   useDeleteTransaction,
   useTransactions,
   useUpdateTransaction,
+  type TransactionFilters,
 } from "../api/hooks";
 import type { TransactionDto } from "../types";
 import { Icon } from "./Icon";
@@ -24,14 +26,17 @@ const SIGN: Record<TransactionDto["type"], -1 | 1> = {
 
 export function TransactionList({
   accountId,
+  filters,
   limit,
 }: {
   accountId?: string;
+  filters?: TransactionFilters;
   limit?: number;
 }) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useTransactions(accountId ? { accountId } : undefined);
+    useTransactions(filters ?? (accountId ? { accountId } : undefined));
   const { data: currencyData } = useCurrencies();
+  const { privacy } = usePrivacy();
   const [editingId, setEditingId] = useState<string | null>(null);
 
   if (isLoading) return <CardSkeleton rows={limit ? 4 : 8} />;
@@ -91,7 +96,7 @@ export function TransactionList({
             </span>
             <span className={cn(g.netDefault < 0 ? "text-neg" : "text-pos")}>
               {g.netDefault < 0 ? "−" : "+"}
-              {fmt(Math.abs(g.netDefault), { exponent: defExponent })}{" "}
+              {masked(privacy, fmt(Math.abs(g.netDefault), { exponent: defExponent }))}{" "}
               {currencyData?.defaultCurrency}
             </span>
           </div>
@@ -121,6 +126,7 @@ function TransactionRow({
   onEdit: () => void;
 }) {
   const del = useDeleteTransaction();
+  const { privacy } = usePrivacy();
   // adjustments carry their own sign in amountMinor; other types derive it
   const sign = t.type === "adjustment" ? (t.amountMinor < 0 ? -1 : 1) : SIGN[t.type];
   const label =
@@ -148,7 +154,7 @@ function TransactionRow({
       </span>
       <span className={cn("num text-[12.5px]", sign < 0 ? "text-neg" : "text-pos")}>
         {sign < 0 ? "−" : "+"}
-        {fmt(Math.abs(t.amountMinor), { exponent })} {t.currencyCode}
+        {masked(privacy, fmt(Math.abs(t.amountMinor), { exponent }))} {t.currencyCode}
       </span>
       <span className="touch-show flex gap-1 opacity-0 group-hover:opacity-100">
         <button

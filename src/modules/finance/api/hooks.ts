@@ -56,10 +56,19 @@ export function useCurrencies() {
   });
 }
 
-export function useTransactions(filters?: { accountId?: string; month?: string }) {
+export interface TransactionFilters {
+  accountId?: string;
+  month?: string;
+  categoryId?: string;
+  q?: string;
+}
+
+export function useTransactions(filters?: TransactionFilters) {
   const params = new URLSearchParams();
   if (filters?.accountId) params.set("accountId", filters.accountId);
   if (filters?.month) params.set("month", filters.month);
+  if (filters?.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters?.q) params.set("q", filters.q);
   return useInfiniteQuery({
     queryKey: ["transactions", filters ?? {}],
     queryFn: ({ pageParam }) =>
