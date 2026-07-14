@@ -62,11 +62,13 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
   const { privacy } = usePrivacy();
   const update = useUpdateCampaign();
   const del = useDeleteCampaign();
+  const [mode, setMode] = useState<"add" | "edit" | null>(null);
   const exponent =
     currencyData?.currencies.find((c) => c.code === currencyData.defaultCurrency)
       ?.exponent ?? 3;
   const chip = chipFor(g);
   const paused = g.status === "paused";
+  const isManual = !g.linkedAccountId;
 
   return (
     <div className={cn("group", paused && "opacity-50")}>
@@ -77,6 +79,20 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
         </span>
         <span className="num ml-auto text-xs text-ink">{g.pct}%</span>
         <span className="touch-show-flex hidden gap-1 group-hover:flex">
+          {isManual && !paused && (
+            <button
+              onClick={() => setMode(mode === "add" ? null : "add")}
+              className="text-[9px] font-bold tracking-[1px] text-faint hover:text-pos"
+            >
+              ADD
+            </button>
+          )}
+          <button
+            onClick={() => setMode(mode === "edit" ? null : "edit")}
+            className="text-[9px] font-bold tracking-[1px] text-faint hover:text-ink"
+          >
+            EDIT
+          </button>
           <button
             onClick={() => update.mutate({ id: g.id, status: paused ? "active" : "paused" })}
             className="text-[9px] font-bold tracking-[1px] text-faint hover:text-ink"
@@ -93,6 +109,12 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
           </button>
         </span>
       </div>
+      {mode === "add" && (
+        <ContributeForm campaign={g} exponent={exponent} onDone={() => setMode(null)} />
+      )}
+      {mode === "edit" && (
+        <CampaignEditForm campaign={g} exponent={exponent} onDone={() => setMode(null)} />
+      )}
       <div className="relative h-[5px] rounded-[3px] bg-inset-2">
         <span
           className={cn(
@@ -114,6 +136,158 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
         {g.targetDate && ` · by ${g.targetDate}`}
         {g.linkedAccountId && " · linked"}
       </p>
+    </div>
+  );
+}
+
+// quick signed contribution for manual campaigns: "+100" adds, "-50" removes
+function ContributeForm({
+  campaign: g,
+  exponent,
+  onDone,
+}: {
+  campaign: CampaignDto;
+  exponent: number;
+  onDone: () => void;
+}) {
+  const update = useUpdateCampaign();
+  const [amount, setAmount] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const delta = parseFloat(amount.replace("−", "-")); // accept typographic minus
+  const valid = !isNaN(delta) && delta !== 0;
+
+  async function submit() {
+    setErr(null);
+    try {
+      const next = Math.max(
+        0,
+        (g.manualProgressMinor ?? 0) + Math.round(delta * 10 ** exponent),
+      );
+      await update.mutateAsync({
+        id: g.id,
+        manualProgress: (next / 10 ** exponent).toFixed(exponent),
+      });
+      onDone();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2 rounded-[9px] border border-border-3 bg-card-hover p-2.5">
+      <input
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        inputMode="decimal"
+        placeholder="Amount"
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && valid) submit();
+          if (e.key === "Escape") onDone();
+        }}
+        className="num w-24 rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-right text-xs outline-none"
+      />
+      <span className="text-[10px] text-faint">use − to remove (e.g. −50)</span>
+      <button
+        onClick={submit}
+        disabled={update.isPending || !valid}
+        className="rounded-lg bg-ink px-3 py-1.5 text-[10.5px] font-bold tracking-wide text-surface disabled:opacity-60"
+      >
+        ADD
+      </button>
+      <button onClick={onDone} className="px-1.5 text-[10.5px] text-muted hover:text-ink">
+        Cancel
+      </button>
+      {err && <p className="num w-full text-[10.5px] text-neg">{err}</p>}
+    </div>
+  );
+}
+
+function CampaignEditForm({
+  campaign: g,
+  exponent,
+  onDone,
+}: {
+  campaign: CampaignDto;
+  exponent: number;
+  onDone: () => void;
+}) {
+  const update = useUpdateCampaign();
+  const isManual = !g.linkedAccountId;
+  const [name, setName] = useState(g.name);
+  const [target, setTarget] = useState(
+    (g.targetDefaultMinor / 10 ** exponent).toFixed(exponent),
+  );
+  const [targetDate, setTargetDate] = useState(g.targetDate ?? "");
+  const [progress, setProgress] = useState(
+    ((g.manualProgressMinor ?? 0) / 10 ** exponent).toFixed(exponent),
+  );
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit() {
+    setErr(null);
+    try {
+      await update.mutateAsync({
+        id: g.id,
+        name,
+        target,
+        targetDate: targetDate || null,
+        manualProgress: isManual ? progress : undefined,
+      });
+      onDone();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
+  return (
+    <div className="mb-2 flex flex-col gap-2 rounded-[9px] border border-border-3 bg-card-hover p-2.5">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-xs outline-none"
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-[10px] text-faint">
+          Target
+          <input
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            inputMode="decimal"
+            className="num w-24 rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-right text-xs text-ink outline-none"
+          />
+        </label>
+        <input
+          type="date"
+          value={targetDate}
+          onChange={(e) => setTargetDate(e.target.value)}
+          className="num rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-xs outline-none"
+        />
+        {isManual && (
+          <label className="flex items-center gap-1.5 text-[10px] text-faint">
+            Saved so far
+            <input
+              value={progress}
+              onChange={(e) => setProgress(e.target.value)}
+              inputMode="decimal"
+              className="num w-24 rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-right text-xs text-ink outline-none"
+            />
+          </label>
+        )}
+      </div>
+      {err && <p className="num text-[10.5px] text-neg">{err}</p>}
+      <div className="flex gap-2">
+        <button
+          onClick={submit}
+          disabled={update.isPending || !name || !target}
+          className="rounded-lg bg-ink px-3 py-1.5 text-[10.5px] font-bold tracking-wide text-surface disabled:opacity-60"
+        >
+          SAVE
+        </button>
+        <button onClick={onDone} className="px-1.5 text-[10.5px] text-muted hover:text-ink">
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
