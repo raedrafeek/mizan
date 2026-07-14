@@ -86,6 +86,8 @@ The original approved plan: `C:\Users\RaedRafeek\.claude\plans\hi-i-was-crispy-m
 | df68335 | **Lock screen** (middleware + login page + logout) |
 | d56f6da | **Money movement**: ⇄ transfer mode in quick-log, date backdating chip (Today/Yesterday/picker), reconcile → signed adjustment (`POST /api/finance/accounts/[id]/reconcile`) |
 | ba57263 | **UX batch**: default + usage-ordered categories (localStorage `mizan.lastCat.*`, `mizan.catUsage`), optimistic commit w/ toast rollback, month nav ‹ ›, FX ticker from account currencies, skeletons, day-grouped transactions, iOS safe-area |
+| 2824b0c | **Trust+Phone** (from 5-persona review): CoinGecko symbol search + picker (user's real HBAR was mis-symboled → valued 0, fixed in DB), NO PRICE badges (`balance.priceStatus`), transfers carry own per-leg value + optional `counterAmount` (fee = gap), future-date 400, stale-alert dedupe per condition, touch-visible row actions (`.touch-show`), sticky quick-log date |
+| c2e9cfe | **Scale+Privacy**: transactions filter bar (account/category/month/note search) + drill-down from Top Categories, `/finance/categories` management page (add/rename/archive), privacy mode covers all amounts |
 
 Everything from the full project review (2026-07-13) is complete. The user is
 actively logging real data (real accounts + transactions exist in the DB —
