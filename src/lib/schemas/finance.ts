@@ -55,6 +55,9 @@ export const transactionCreateSchema = z.object({
   note: z.string().max(500).optional(),
   // transfers: the counterparty account; server creates both legs
   counterAccountId: z.string().optional(),
+  // transfers: actual amount received in the counter account's currency
+  // (banks credit less than mid-market — the difference is the implicit fee)
+  counterAmount: decimalString.optional(),
   // optional manual FX override (1 unit account currency = rate default currency)
   fxRateToDefault: decimalString.optional(),
 });

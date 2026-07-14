@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
+import { Skeleton } from "@/shell/Skeleton";
 import { fmt } from "@/lib/format-money";
 import { masked, usePrivacy } from "@/shell/privacy";
 import { useAccounts } from "../api/hooks";
@@ -30,7 +31,19 @@ export function LogScreen() {
   const selected =
     transactional.find((a) => a.id === selectedId) ?? transactional[0] ?? null;
 
-  if (isLoading) return <p className="py-12 text-center text-sm text-faint">Loading…</p>;
+  if (isLoading) {
+    return (
+      <div className="mx-auto flex max-w-xl flex-col gap-4">
+        <div className="flex gap-2">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-9 w-32 rounded-full" />
+          ))}
+        </div>
+        <Skeleton className="h-[62px] rounded-2xl" />
+        <Skeleton className="h-40 rounded-2xl" />
+      </div>
+    );
+  }
   if (transactional.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-muted">

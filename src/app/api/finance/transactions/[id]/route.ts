@@ -15,6 +15,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   const input = parsed.data;
 
+  const kuwaitToday = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+  if (input.date && input.date > kuwaitToday) {
+    return NextResponse.json({ error: `Date ${input.date} is in the future` }, { status: 400 });
+  }
+
   const [existing, fx] = await Promise.all([
     prisma.transaction.findUnique({ where: { id } }),
     loadFxContext(),

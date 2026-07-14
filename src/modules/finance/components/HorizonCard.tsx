@@ -92,7 +92,7 @@ function HorizonRow({ item: h }: { item: HorizonItemDto }) {
           {out ? "−" : "+"}
           {formatMinor(h.amountMinor, exponent)} {h.currencyCode}
         </span>
-        <span className="hidden flex-col gap-1 group-hover:flex">
+        <span className="touch-show-flex hidden flex-col gap-1 group-hover:flex">
           <button
             onClick={async () => {
               setErr(null);

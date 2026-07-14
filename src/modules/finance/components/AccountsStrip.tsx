@@ -72,7 +72,11 @@ export function AccountsStrip({
                     {defaultCurrency}
                   </>
                 )}
-                {bal?.stale && <span className="text-warn"> · stale</span>}
+                {bal?.priceStatus === "missing" ? (
+                  <span className="font-bold text-neg"> · NO PRICE — check symbol</span>
+                ) : (
+                  bal?.stale && <span className="text-warn"> · stale</span>
+                )}
                 {!a.includeInNetWorth && " · not counted"}
               </span>
             </button>

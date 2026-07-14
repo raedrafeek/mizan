@@ -74,7 +74,7 @@ export function AlertTray() {
                 <span className="flex-1 text-xs leading-relaxed text-ink-2">{a.title}</span>
                 <button
                   onClick={() => dismiss.mutate(a.id)}
-                  className="hidden text-faint hover:text-ink group-hover:block"
+                  className="touch-show -m-1 hidden p-2 text-faint opacity-0 hover:text-ink group-hover:block group-hover:opacity-100"
                   aria-label="Dismiss"
                 >
                   ✕

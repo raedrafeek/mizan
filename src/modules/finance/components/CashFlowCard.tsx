@@ -25,14 +25,18 @@ export function MonthNav({
     .toUpperCase();
   return (
     <span className="num flex items-center gap-1.5 text-[10px] text-faint">
-      <button onClick={() => shift(-1)} className="px-1 text-muted hover:text-ink" aria-label="Previous month">
+      <button
+        onClick={() => shift(-1)}
+        className="px-2.5 py-1.5 text-sm text-muted hover:text-ink"
+        aria-label="Previous month"
+      >
         ‹
       </button>
       <span className={cn("min-w-[34px] text-center", month !== current && "text-warn")}>{label}</span>
       <button
         onClick={() => shift(1)}
         disabled={month >= current}
-        className="px-1 text-muted hover:text-ink disabled:opacity-30"
+        className="px-2.5 py-1.5 text-sm text-muted hover:text-ink disabled:opacity-30"
         aria-label="Next month"
       >
         ›

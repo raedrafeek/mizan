@@ -60,6 +60,7 @@ export function QuickLog({
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [counterId, setCounterId] = useState<string | null>(null);
+  const [counterAmount, setCounterAmount] = useState("");
   const [date, setDate] = useState(todayISO());
   const [dateOpen, setDateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +167,8 @@ export function QuickLog({
       amount,
       categoryId: mode === "transfer" ? undefined : categoryId!,
       counterAccountId: mode === "transfer" ? counter!.id : undefined,
+      counterAmount:
+        mode === "transfer" && counterAmount ? counterAmount : undefined,
       date,
     };
 
@@ -173,7 +176,9 @@ export function QuickLog({
     const failedAmount = amount;
     const failedDate = date;
     setAmount("");
-    setDate(todayISO());
+    setCounterAmount("");
+    // date deliberately stays — batch-logging several entries for the same
+    // past day shouldn't require re-picking the date each time
     setFlash(true);
     setTimeout(() => setFlash(false), 1200);
     if (mode !== "transfer" && categoryId) {
@@ -252,6 +257,18 @@ export function QuickLog({
             mode === "income" ? "text-pos" : "text-ink",
           )}
         />
+
+        {/* actual received amount for cross-currency transfers (fee/spread aware) */}
+        {mode === "transfer" && counter && counter.currencyCode !== account?.currencyCode && (
+          <input
+            value={counterAmount}
+            onChange={(e) => setCounterAmount(e.target.value)}
+            inputMode="decimal"
+            placeholder={`received ${counter.currencyCode}`}
+            title="Actual amount credited (leave empty to use the mid-market rate)"
+            className="num w-[110px] flex-none rounded-[11px] border border-border-3 bg-surface px-3 py-2.5 text-right text-[13px] text-ink outline-none"
+          />
+        )}
 
         {/* date chip */}
         <div ref={dateRef} className="relative flex-none">

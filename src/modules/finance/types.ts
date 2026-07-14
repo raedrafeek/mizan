@@ -14,6 +14,7 @@ export interface AccountBalanceDto {
   currencyCode: string;
   balanceDefaultMinor: number;
   stale: boolean;
+  priceStatus: "ok" | "stale" | "missing" | null;
 }
 
 export interface AccountDto {

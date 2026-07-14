@@ -150,7 +150,7 @@ function TransactionRow({
         {sign < 0 ? "−" : "+"}
         {fmt(Math.abs(t.amountMinor), { exponent })} {t.currencyCode}
       </span>
-      <span className="flex gap-1 opacity-0 group-hover:opacity-100">
+      <span className="touch-show flex gap-1 opacity-0 group-hover:opacity-100">
         <button
           onClick={onEdit}
           className="rounded p-1 text-ghost hover:text-muted"
@@ -255,6 +255,11 @@ function TransactionEditRow({
           placeholder="Note…"
           className="min-w-32 flex-1 rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-xs outline-none"
         />
+        {isTransfer && (
+          <span className="num w-full text-[10px] text-warn">
+            Transfer leg — edits change only this account&apos;s side (sent and received amounts can differ; the gap is the bank&apos;s fee/spread)
+          </span>
+        )}
         <button
           onClick={save}
           disabled={update.isPending}

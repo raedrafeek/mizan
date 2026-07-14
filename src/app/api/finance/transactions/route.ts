@@ -39,6 +39,15 @@ export async function POST(req: NextRequest) {
   }
   const input = parsed.data;
 
+  // server-side guard: no future-dated transactions (UI blocks them too)
+  const kuwaitToday = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+  if (input.date > kuwaitToday) {
+    return NextResponse.json(
+      { error: `Date ${input.date} is in the future` },
+      { status: 400 },
+    );
+  }
+
   const [account, fx] = await Promise.all([
     prisma.account.findUnique({ where: { id: input.accountId } }),
     loadFxContext(),
@@ -88,11 +97,21 @@ export async function POST(req: NextRequest) {
       );
     }
     const counterExponent = fx.currencies.get(counter.currencyCode)?.exponent ?? 2;
-    const counterAmountMinor = convertMinor(
-      amountDefaultMinor,
-      new Decimal(1).div(counterInfo.rate),
-      fx.defExponent,
+    // received amount: caller-provided actual credit wins; else mid-market estimate
+    const counterAmountMinor = input.counterAmount
+      ? parseAmount(input.counterAmount, counterExponent)
+      : convertMinor(
+          amountDefaultMinor,
+          new Decimal(1).div(counterInfo.rate),
+          fx.defExponent,
+          counterExponent,
+        );
+    // each leg carries its OWN default-currency value (difference = implicit fee/spread)
+    const counterDefaultMinor = convertMinor(
+      counterAmountMinor,
+      counterInfo.rate,
       counterExponent,
+      fx.defExponent,
     );
     const groupId = crypto.randomUUID();
     const [out] = await prisma.$transaction([
@@ -116,7 +135,7 @@ export async function POST(req: NextRequest) {
           amountMinor: BigInt(counterAmountMinor),
           currencyCode: counter.currencyCode,
           fxRateToDefault: counterInfo.rate.toString(),
-          amountDefaultMinor: BigInt(amountDefaultMinor),
+          amountDefaultMinor: BigInt(counterDefaultMinor),
           date: input.date,
           note: input.note,
           transferGroupId: groupId,

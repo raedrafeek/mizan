@@ -11,6 +11,8 @@ export interface AccountBalance {
   /** balance converted to default currency, minor units */
   balanceDefaultMinor: number;
   stale: boolean;
+  /** priced accounts: "missing" = no quote ever fetched (bad symbol / new) — value is 0! */
+  priceStatus: "ok" | "stale" | "missing" | null;
   isLiability: boolean;
   includeInNetWorth: boolean;
 }
@@ -47,6 +49,7 @@ export async function computeBalances(ctx?: FxContext): Promise<AccountBalance[]
     const exponent = fx.currencies.get(a.currencyCode)?.exponent ?? 2;
     let balanceMinor: number;
     let stale = false;
+    let priceStatus: AccountBalance["priceStatus"] = null;
 
     if (a.kind === "priced") {
       const quote = a.assetSymbol ? quoteMap.get(a.assetSymbol) : undefined;
@@ -66,15 +69,19 @@ export async function computeBalances(ctx?: FxContext): Promise<AccountBalance[]
         const ageMs = Date.now() - quote.fetchedAt.getTime();
         const staleMs = a.subtype === "crypto" ? 3_600_000 : 86_400_000;
         stale = stale || ageMs > staleMs;
+        priceStatus = stale ? "stale" : "ok";
       } else if (a.manualPriceMinor != null && a.quantity) {
         balanceMinor = new Decimal(a.quantity.toString())
           .mul(Number(a.manualPriceMinor))
           .toDecimalPlaces(0, Decimal.ROUND_HALF_EVEN)
           .toNumber();
         stale = a.priceSource !== "manual";
+        priceStatus = a.priceSource === "manual" ? "ok" : "missing";
       } else {
+        // live-priced account with no quote ever fetched — likely a bad symbol
         balanceMinor = 0;
         stale = true;
+        priceStatus = "missing";
       }
     } else {
       balanceMinor = Number(a.openingBalanceMinor) + (sumMap.get(a.id) ?? 0);
@@ -97,6 +104,7 @@ export async function computeBalances(ctx?: FxContext): Promise<AccountBalance[]
       currencyCode: a.currencyCode,
       balanceDefaultMinor,
       stale,
+      priceStatus,
       isLiability: a.isLiability,
       includeInNetWorth: a.includeInNetWorth,
     });

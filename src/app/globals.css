@@ -56,3 +56,14 @@ body {
 input::placeholder {
   color: var(--color-faint);
 }
+
+/* Row actions are hover-revealed on pointer devices but must be ALWAYS
+   visible on touch screens (there is no hover on a phone). */
+@media (hover: none) {
+  .touch-show {
+    opacity: 1 !important;
+  }
+  .touch-show-flex {
+    display: flex !important;
+  }
+}

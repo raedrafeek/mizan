@@ -99,14 +99,16 @@ export async function evaluateFinanceAlerts(force = false): Promise<void> {
       ? (Date.now() - quote.fetchedAt.getTime()) / 86_400_000
       : Infinity;
     if (ageDays <= 7) continue;
+    // dedupe per account + condition (NOT per day — daily keys piled up duplicates);
+    // once dismissed it stays quiet unless the condition changes (missing ↔ stale)
     await upsertAlert({
       kind: "stale_price",
       severity: "warn",
       title: quote
         ? `${a.name}: price is ${Math.floor(ageDays)}d old`
-        : `${a.name}: no price data yet`,
+        : `${a.name}: no price found — check the asset symbol`,
       entityRef: `account:${a.id}`,
-      dedupeKey: `stale_price:${a.id}:${today}`,
+      dedupeKey: `stale_price:${a.id}:${quote ? "stale" : "missing"}`,
     });
   }
 }

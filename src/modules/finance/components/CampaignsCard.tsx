@@ -74,7 +74,7 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
           {chip.label}
         </span>
         <span className="num ml-auto text-xs text-ink">{g.pct}%</span>
-        <span className="hidden gap-1 group-hover:flex">
+        <span className="touch-show-flex hidden gap-1 group-hover:flex">
           <button
             onClick={() => update.mutate({ id: g.id, status: paused ? "active" : "paused" })}
             className="text-[9px] font-bold tracking-[1px] text-faint hover:text-ink"

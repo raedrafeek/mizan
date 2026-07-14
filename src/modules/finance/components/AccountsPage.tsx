@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
 import { fmt } from "@/lib/format-money";
@@ -105,7 +105,11 @@ function AccountRow({
       >
         {a.balance ? masked(privacy, fmt(a.balance.balanceMinor, a.currency)) : "—"}{" "}
         <span className="text-xs font-medium text-faint">{a.currencyCode}</span>
-        {a.balance?.stale && <span className="ml-2 text-[10px] text-warn">stale</span>}
+        {a.balance?.priceStatus === "missing" ? (
+          <span className="ml-2 text-[10px] font-bold text-neg">NO PRICE — check symbol</span>
+        ) : (
+          a.balance?.stale && <span className="ml-2 text-[10px] text-warn">stale</span>
+        )}
       </p>
       {a.balance && a.currencyCode !== defaultCurrency && (
         <p className="num mt-0.5 text-[10.5px] text-faint">
@@ -205,6 +209,73 @@ function AccountRow({
   );
 }
 
+function CryptoSymbolSearch({
+  value,
+  onSelect,
+}: {
+  value: string;
+  onSelect: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<
+    { id: string; name: string; symbol: string; rank: number | null }[]
+  >([]);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    if (query.length < 2) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/finance/crypto-search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        setResults(data.coins ?? []);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  return (
+    <label className="relative flex flex-col gap-1.5 text-[11px] text-muted">
+      Coin {value && <span className="text-pos">✓ {value}</span>}
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search by name or ticker (e.g. HBAR)…"
+        className="rounded-lg border border-border-3 bg-surface px-3 py-2 text-[13px] text-ink outline-none"
+      />
+      {(results.length > 0 || searching) && (
+        <div className="absolute top-full z-30 mt-1 w-full overflow-hidden rounded-lg border border-border-4 bg-card shadow-2xl">
+          {searching && <p className="px-3 py-2 text-[11px] text-faint">Searching…</p>}
+          {results.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => {
+                onSelect(c.id);
+                setQuery("");
+                setResults([]);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ink-2 hover:bg-card-hover"
+            >
+              <span className="num font-bold uppercase text-muted">{c.symbol}</span>
+              {c.name}
+              {c.rank && <span className="num ml-auto text-[10px] text-faint">#{c.rank}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </label>
+  );
+}
+
 function AccountForm({ onDone }: { onDone: () => void }) {
   const { data: currencyData } = useCurrencies();
   const create = useCreateAccount();
@@ -299,14 +370,18 @@ function AccountForm({ onDone }: { onDone: () => void }) {
           </label>
         ) : (
           <>
-            <label className="flex flex-col gap-1.5 text-[11px] text-muted">
-              Asset symbol ({subtype.value === "crypto" ? "CoinGecko id, e.g. bitcoin" : "ticker, e.g. AAPL"})
-              <input
-                value={assetSymbol}
-                onChange={(e) => setAssetSymbol(e.target.value)}
-                className="rounded-lg border border-border-3 bg-surface px-3 py-2 text-[13px] text-ink outline-none"
-              />
-            </label>
+            {subtype.value === "crypto" ? (
+              <CryptoSymbolSearch value={assetSymbol} onSelect={setAssetSymbol} />
+            ) : (
+              <label className="flex flex-col gap-1.5 text-[11px] text-muted">
+                Ticker (e.g. AAPL)
+                <input
+                  value={assetSymbol}
+                  onChange={(e) => setAssetSymbol(e.target.value)}
+                  className="rounded-lg border border-border-3 bg-surface px-3 py-2 text-[13px] text-ink outline-none"
+                />
+              </label>
+            )}
             <label className="flex flex-col gap-1.5 text-[11px] text-muted">
               Quantity
               <input
