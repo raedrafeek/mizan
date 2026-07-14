@@ -23,13 +23,18 @@ export async function refreshCryptoQuotes(force = false): Promise<{ refreshed: n
   if (ids.length === 0) return { refreshed: 0 };
 
   if (!force) {
-    const newest = await prisma.priceQuote.findFirst({
+    // per-coin freshness: a newly added coin with no quote yet must not be
+    // skipped just because another coin was refreshed recently
+    const newestPerId = await prisma.priceQuote.groupBy({
+      by: ["assetSymbol"],
       where: { assetSymbol: { in: ids }, source: "coingecko" },
-      orderBy: { fetchedAt: "desc" },
+      _max: { fetchedAt: true },
     });
-    if (newest && Date.now() - newest.fetchedAt.getTime() < CRYPTO_FRESH_MS) {
-      return { refreshed: 0 };
-    }
+    const cutoff = Date.now() - CRYPTO_FRESH_MS;
+    const allFresh =
+      newestPerId.length === ids.length &&
+      newestPerId.every((q) => (q._max.fetchedAt?.getTime() ?? 0) > cutoff);
+    if (allFresh) return { refreshed: 0 };
   }
 
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids.join(","))}&vs_currencies=usd`;
