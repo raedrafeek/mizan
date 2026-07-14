@@ -88,6 +88,8 @@ The original approved plan: `C:\Users\RaedRafeek\.claude\plans\hi-i-was-crispy-m
 | ba57263 | **UX batch**: default + usage-ordered categories (localStorage `mizan.lastCat.*`, `mizan.catUsage`), optimistic commit w/ toast rollback, month nav ‹ ›, FX ticker from account currencies, skeletons, day-grouped transactions, iOS safe-area |
 | 2824b0c | **Trust+Phone** (from 5-persona review): CoinGecko symbol search + picker (user's real HBAR was mis-symboled → valued 0, fixed in DB), NO PRICE badges (`balance.priceStatus`), transfers carry own per-leg value + optional `counterAmount` (fee = gap), future-date 400, stale-alert dedupe per condition, touch-visible row actions (`.touch-show`), sticky quick-log date |
 | c2e9cfe | **Scale+Privacy**: transactions filter bar (account/category/month/note search) + drill-down from Top Categories, `/finance/categories` management page (add/rename/archive), privacy mode covers all amounts |
+| c2bc241 | **Demo dataset**: `scripts/demo-seed.ts` (8 realistic accounts, 730 txns over 1yr, budgets/campaigns/horizon, 363 snapshots; IDs tracked in Setting `demo.seed`) + `scripts/demo-clean.ts` (exact removal). Fix: crypto quote freshness now per-coin (new coin no longer starved by another coin's fresh quote) |
+| 81be2c6 | **Campaign contributions**: ADD (signed increment, "-50" removes, clamped ≥0) + EDIT (name/target/date/saved-so-far) on campaign rows — manual campaigns previously had no way to update progress |
 
 Everything from the full project review (2026-07-13) is complete. The user is
 actively logging real data (real accounts + transactions exist in the DB —
