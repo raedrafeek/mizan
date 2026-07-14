@@ -206,7 +206,7 @@ export function QuickLog({
     <div>
       <div
         className={cn(
-          "flex items-center gap-2.5 rounded-2xl border bg-card p-3 transition-colors sm:gap-3.5",
+          "flex flex-wrap items-center gap-2.5 rounded-2xl border bg-card p-3 transition-colors sm:flex-nowrap sm:gap-3.5",
           flash ? "border-pos/60" : "border-border-2",
         )}
       >
@@ -252,7 +252,7 @@ export function QuickLog({
           inputMode="decimal"
           placeholder={account ? (0).toFixed(account.currency.exponent) : "0.000"}
           className={cn(
-            "num w-[96px] flex-none rounded-[11px] border bg-surface px-3 py-2.5 text-right text-base outline-none sm:w-[128px]",
+            "num min-w-[96px] flex-1 rounded-[11px] border bg-surface px-3 py-2.5 text-right text-base outline-none sm:w-[128px] sm:flex-none",
             ccWarning ? "border-neg/55" : "border-border-3",
             mode === "income" ? "text-pos" : "text-ink",
           )}
@@ -319,8 +319,8 @@ export function QuickLog({
           )}
         </div>
 
-        {/* category rail / destination account rail */}
-        <div className="relative min-w-0 flex-1 overflow-hidden">
+        {/* category rail / destination account rail — own full-width row on phones */}
+        <div className="relative min-w-0 grow basis-full overflow-hidden sm:basis-0">
           <div className="hs flex gap-2 overflow-x-auto p-0.5 pr-6">
             {mode === "transfer"
               ? counterAccounts.map((a) => {
@@ -364,10 +364,10 @@ export function QuickLog({
           <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-r from-transparent to-card" />
         </div>
 
-        {/* commit */}
+        {/* commit — full-width tap target on phones */}
         <button
           onClick={commit}
-          className="flex-none rounded-[11px] bg-ink px-5 py-3 text-[12.5px] font-bold tracking-[1.5px] text-surface hover:bg-white sm:px-6"
+          className="w-full flex-none rounded-[11px] bg-ink px-5 py-3 text-[12.5px] font-bold tracking-[1.5px] text-surface hover:bg-white sm:w-auto sm:px-6"
         >
           COMMIT
         </button>
