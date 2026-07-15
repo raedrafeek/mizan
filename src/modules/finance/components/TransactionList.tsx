@@ -6,15 +6,13 @@ import { CardSkeleton } from "@/shell/Skeleton";
 import { masked, usePrivacy } from "@/shell/privacy";
 import { fmt } from "@/lib/format-money";
 import {
-  useCategories,
   useCurrencies,
-  useDeleteTransaction,
   useTransactions,
-  useUpdateTransaction,
   type TransactionFilters,
 } from "../api/hooks";
 import type { TransactionDto } from "../types";
 import { Icon } from "./Icon";
+import { TransactionSheet } from "./TransactionSheet";
 
 const SIGN: Record<TransactionDto["type"], -1 | 1> = {
   expense: -1,
@@ -37,7 +35,7 @@ export function TransactionList({
     useTransactions(filters ?? (accountId ? { accountId } : undefined));
   const { data: currencyData } = useCurrencies();
   const { privacy } = usePrivacy();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [openTxn, setOpenTxn] = useState<TransactionDto | null>(null);
 
   if (isLoading) return <CardSkeleton rows={limit ? 4 : 8} />;
 
@@ -53,21 +51,27 @@ export function TransactionList({
     ? exponentOf(currencyData.defaultCurrency)
     : 3;
 
-  const renderRow = (t: TransactionDto) =>
-    editingId === t.id ? (
-      <TransactionEditRow key={t.id} txn={t} onClose={() => setEditingId(null)} />
-    ) : (
-      <TransactionRow
-        key={t.id}
-        txn={t}
-        exponent={exponentOf(t.currencyCode)}
-        onEdit={() => setEditingId(t.id)}
-      />
-    );
+  const renderRow = (t: TransactionDto) => (
+    <TransactionRow
+      key={t.id}
+      txn={t}
+      exponent={exponentOf(t.currencyCode)}
+      onOpen={() => setOpenTxn(t)}
+    />
+  );
+
+  const sheet = openTxn && (
+    <TransactionSheet txn={openTxn} onClose={() => setOpenTxn(null)} />
+  );
 
   // dashboard (limited) view stays flat; the full page groups by day with net totals
   if (limit) {
-    return <div className="flex flex-col gap-0.5">{items.map(renderRow)}</div>;
+    return (
+      <div className="flex flex-col gap-0.5">
+        {items.map(renderRow)}
+        {sheet}
+      </div>
+    );
   }
 
   const groups: { date: string; items: TransactionDto[]; netDefault: number }[] = [];
@@ -112,6 +116,7 @@ export function TransactionList({
           {isFetchingNextPage ? "Loading…" : "Load more"}
         </button>
       )}
+      {sheet}
     </div>
   );
 }
@@ -119,13 +124,12 @@ export function TransactionList({
 function TransactionRow({
   txn: t,
   exponent,
-  onEdit,
+  onOpen,
 }: {
   txn: TransactionDto;
   exponent: number;
-  onEdit: () => void;
+  onOpen: () => void;
 }) {
-  const del = useDeleteTransaction();
   const { privacy } = usePrivacy();
   // adjustments carry their own sign in amountMinor; other types derive it
   const sign = t.type === "adjustment" ? (t.amountMinor < 0 ? -1 : 1) : SIGN[t.type];
@@ -136,10 +140,13 @@ function TransactionRow({
       : t.type === "transfer_in"
         ? "Transfer in"
         : t.type === "adjustment"
-          ? "Adjustment"
+          ? "Balance correction"
           : "Uncategorized");
   return (
-    <div className="group flex items-center gap-2.5 rounded-[9px] px-1.5 py-2 hover:bg-card-hover">
+    <button
+      onClick={onOpen}
+      className="flex w-full items-center gap-2.5 rounded-[9px] px-1.5 py-2 text-left hover:bg-card-hover"
+    >
       <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-inset text-muted">
         <Icon name={t.category?.icon ?? "other"} size={13} />
       </span>
@@ -156,128 +163,11 @@ function TransactionRow({
         {sign < 0 ? "−" : "+"}
         {masked(privacy, fmt(Math.abs(t.amountMinor), { exponent }))} {t.currencyCode}
       </span>
-      <span className="touch-show flex gap-1 opacity-0 group-hover:opacity-100">
-        <button
-          onClick={onEdit}
-          className="rounded p-1 text-ghost hover:text-muted"
-          aria-label="Edit"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M16.8 3.7a2.2 2.2 0 0 1 3.1 3.1L7.5 19.2 3 20.5l1.3-4.5z" />
-          </svg>
-        </button>
-        <button
-          onClick={() => {
-            if (confirm(t.transferGroupId ? "Delete both legs of this transfer?" : "Delete this transaction?")) {
-              del.mutate(t.id);
-            }
-          }}
-          className="rounded p-1 text-ghost hover:text-neg"
-          aria-label="Delete"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-            <path d="M4 7h16 M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2 M6.5 7l1 13h9l1-13" />
-          </svg>
-        </button>
+      <span className="flex-none text-ghost">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 5l7 7-7 7" />
+        </svg>
       </span>
-    </div>
-  );
-}
-
-function TransactionEditRow({
-  txn: t,
-  onClose,
-}: {
-  txn: TransactionDto;
-  onClose: () => void;
-}) {
-  const { data: categories } = useCategories();
-  const { data: currencyData } = useCurrencies();
-  const update = useUpdateTransaction();
-  const exponent =
-    currencyData?.currencies.find((c) => c.code === t.currencyCode)?.exponent ?? 2;
-
-  const [amount, setAmount] = useState(
-    (Math.abs(t.amountMinor) / 10 ** exponent).toFixed(exponent),
-  );
-  const [date, setDate] = useState(t.date);
-  const [note, setNote] = useState(t.note ?? "");
-  const [categoryId, setCategoryId] = useState(t.categoryId ?? "");
-  const [err, setErr] = useState<string | null>(null);
-
-  const catType = t.type === "income" ? "income" : "expense";
-  const cats = (categories ?? []).filter((c) => c.type === catType);
-  const isTransfer = !!t.transferGroupId;
-
-  async function save() {
-    setErr(null);
-    try {
-      await update.mutateAsync({
-        id: t.id,
-        amount,
-        date,
-        note: note || null,
-        categoryId: isTransfer ? undefined : categoryId || null,
-      });
-      onClose();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed");
-    }
-  }
-
-  return (
-    <div className="rounded-[9px] border border-border-3 bg-card-hover p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          inputMode="decimal"
-          className="num w-28 rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-right text-sm outline-none"
-        />
-        <span className="num text-xs text-faint">{t.currencyCode}</span>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="num rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-xs outline-none"
-        />
-        {!isTransfer && (
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-xs outline-none"
-          >
-            <option value="">Uncategorized</option>
-            {cats.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Note…"
-          className="min-w-32 flex-1 rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-xs outline-none"
-        />
-        {isTransfer && (
-          <span className="num w-full text-[10px] text-warn">
-            Transfer leg — edits change only this account&apos;s side (sent and received amounts can differ; the gap is the bank&apos;s fee/spread)
-          </span>
-        )}
-        <button
-          onClick={save}
-          disabled={update.isPending}
-          className="rounded-lg bg-ink px-3.5 py-1.5 text-[11px] font-bold tracking-wide text-surface disabled:opacity-60"
-        >
-          SAVE
-        </button>
-        <button onClick={onClose} className="px-2 py-1.5 text-[11px] text-muted hover:text-ink">
-          Cancel
-        </button>
-      </div>
-      {err && <p className="num mt-1.5 text-[10.5px] text-neg">{err}</p>}
-    </div>
+    </button>
   );
 }

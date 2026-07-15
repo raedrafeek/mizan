@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
@@ -10,8 +11,6 @@ import {
   useAccounts,
   useCreateAccount,
   useCurrencies,
-  useDeleteAccount,
-  useReconcileAccount,
   useUpdateAccount,
 } from "../api/hooks";
 import type { AccountDto } from "../types";
@@ -100,6 +99,7 @@ function ArchivedAccounts() {
   );
 }
 
+/** List card — tap through to the account screen for actions and activity. */
 function AccountRow({
   account: a,
   defaultCurrency,
@@ -107,170 +107,68 @@ function AccountRow({
   account: AccountDto;
   defaultCurrency: string;
 }) {
-  const update = useUpdateAccount();
-  const del = useDeleteAccount();
-  const reconcile = useReconcileAccount();
   const { privacy } = usePrivacy();
-  const [editing, setEditing] = useState(false);
-  const [editingQty, setEditingQty] = useState(false);
-  const [qty, setQty] = useState(a.quantity ?? "0");
-  const [reconciling, setReconciling] = useState(false);
-  const [actual, setActual] = useState("");
-  const [reconcileErr, setReconcileErr] = useState<string | null>(null);
 
   return (
-    <Card className={cn(a.isLiability && "border-neg/25 bg-neg/5")}>
-      <div className="flex items-start gap-2.5">
-        <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-inset text-muted">
-          <Icon name={a.icon} size={15} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-ink-2">
-            {a.name}
-            {a.mask && <span className="num ml-1.5 text-[10px] text-faint">{a.mask}</span>}
-          </p>
-          <p className="num mt-0.5 text-[10.5px] text-faint">
-            {a.subtype.replace("_", " ")} · {a.currencyCode}
-            {a.kind === "priced" && a.assetSymbol && ` · ${a.assetSymbol}`}
-          </p>
-        </div>
-        <button
-          onClick={() => setEditing((v) => !v)}
-          className="rounded p-1 text-ghost hover:text-muted"
-          aria-label="Edit account"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M16.8 3.7a2.2 2.2 0 0 1 3.1 3.1L7.5 19.2 3 20.5l1.3-4.5z" />
-          </svg>
-        </button>
-        <button
-          onClick={() => {
-            if (confirm(`Delete/archive "${a.name}"?`)) del.mutate(a.id);
-          }}
-          className="rounded p-1 text-ghost hover:text-neg"
-          aria-label="Delete account"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-            <path d="M4 7h16 M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2 M6.5 7l1 13h9l1-13" />
-          </svg>
-        </button>
-      </div>
-
-      {editing && <AccountEditForm account={a} onDone={() => setEditing(false)} />}
-
-      <p
+    <Link href={`/accounts/${a.id}`} className="block">
+      <Card
         className={cn(
-          "num mt-3 text-lg font-semibold",
-          (a.balance?.balanceMinor ?? 0) < 0 ? "text-neg" : "text-ink",
+          "h-full transition-colors hover:border-border-5",
+          a.isLiability && "border-neg/25 bg-neg/5",
         )}
       >
-        {a.balance ? masked(privacy, fmt(a.balance.balanceMinor, a.currency)) : "—"}{" "}
-        <span className="text-xs font-medium text-faint">{a.currencyCode}</span>
-        {a.balance?.priceStatus === "missing" ? (
-          <span className="ml-2 text-[10px] font-bold text-neg">NO PRICE — check symbol</span>
-        ) : (
-          a.balance?.stale && <span className="ml-2 text-[10px] text-warn">stale</span>
-        )}
-      </p>
-      {a.balance && a.currencyCode !== defaultCurrency && (
-        <p className="num mt-0.5 text-[10.5px] text-faint">
-          ≈ {masked(privacy, fmt(a.balance.balanceDefaultMinor, { exponent: 3 }))} {defaultCurrency}
+        <div className="flex items-start gap-2.5">
+          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-inset text-muted">
+            <Icon name={a.icon} size={15} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold text-ink-2">
+              {a.name}
+              {a.mask && <span className="num ml-1.5 text-[10px] text-faint">{a.mask}</span>}
+            </p>
+            <p className="num mt-0.5 text-[10.5px] text-faint">
+              {a.subtype.replace("_", " ")} · {a.currencyCode}
+              {a.kind === "priced" && a.assetSymbol && ` · ${a.assetSymbol}`}
+            </p>
+          </div>
+          <span className="mt-1 text-ghost">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 5l7 7-7 7" />
+            </svg>
+          </span>
+        </div>
+
+        <p
+          className={cn(
+            "num mt-3 text-lg font-semibold",
+            (a.balance?.balanceMinor ?? 0) < 0 ? "text-neg" : "text-ink",
+          )}
+        >
+          {a.balance ? masked(privacy, fmt(a.balance.balanceMinor, a.currency)) : "—"}{" "}
+          <span className="text-xs font-medium text-faint">{a.currencyCode}</span>
+          {a.balance?.priceStatus === "missing" ? (
+            <span className="ml-2 text-[10px] font-bold text-neg">NO PRICE — check symbol</span>
+          ) : (
+            a.balance?.stale && <span className="ml-2 text-[10px] text-warn">stale</span>
+          )}
         </p>
-      )}
-
-      {a.kind === "priced" && (
-        <div className="num mt-2 flex items-center gap-2 text-[10.5px] text-faint">
-          {editingQty ? (
-            <>
-              <input
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                inputMode="decimal"
-                className="w-28 rounded border border-border-3 bg-surface px-2 py-1 text-right outline-none"
-              />
-              <button
-                onClick={async () => {
-                  await update.mutateAsync({ id: a.id, quantity: qty });
-                  setEditingQty(false);
-                }}
-                className="font-bold text-pos"
-              >
-                SAVE
-              </button>
-              <button onClick={() => setEditingQty(false)} className="text-muted">
-                cancel
-              </button>
-            </>
-          ) : (
-            <>
-              Qty: {a.quantity ?? "0"}
-              <button onClick={() => setEditingQty(true)} className="text-muted underline">
-                edit
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {a.kind === "transactional" && (
-        <div className="num mt-2 text-[10.5px] text-faint">
-          {reconciling ? (
-            <span className="flex items-center gap-2">
-              <input
-                autoFocus
-                value={actual}
-                onChange={(e) => setActual(e.target.value)}
-                onKeyDown={async (e) => {
-                  if (e.key === "Escape") setReconciling(false);
-                  if (e.key === "Enter" && actual) {
-                    setReconcileErr(null);
-                    try {
-                      await reconcile.mutateAsync({ id: a.id, actualBalance: actual });
-                      setReconciling(false);
-                      setActual("");
-                    } catch (err) {
-                      setReconcileErr(err instanceof Error ? err.message : "Failed");
-                    }
-                  }
-                }}
-                inputMode="decimal"
-                placeholder={`actual balance (${a.currencyCode})`}
-                className="w-40 rounded border border-border-3 bg-surface px-2 py-1 text-right text-ink outline-none"
-              />
-              <button
-                onClick={() => setReconciling(false)}
-                className="text-muted hover:text-ink"
-              >
-                cancel
-              </button>
-              {reconcileErr && <span className="text-neg">{reconcileErr}</span>}
-            </span>
-          ) : (
-            <button
-              onClick={() => setReconciling(true)}
-              className="text-muted underline underline-offset-2 hover:text-ink"
-              title="Enter what the bank actually says; a balance correction records the difference"
-            >
-              fix balance
-            </button>
-          )}
-        </div>
-      )}
-
-      <label className="mt-3 flex cursor-pointer items-center gap-2 text-[11px] text-muted">
-        <input
-          type="checkbox"
-          checked={a.includeInNetWorth}
-          onChange={(e) => update.mutate({ id: a.id, includeInNetWorth: e.target.checked })}
-          className="accent-[#35D07F]"
-        />
-        Count in net worth
-      </label>
-    </Card>
+        {a.balance && a.currencyCode !== defaultCurrency && (
+          <p className="num mt-0.5 text-[10.5px] text-faint">
+            ≈ {masked(privacy, fmt(a.balance.balanceDefaultMinor, { exponent: 3 }))} {defaultCurrency}
+          </p>
+        )}
+        {a.kind === "priced" && (
+          <p className="num mt-1.5 text-[10.5px] text-faint">Qty: {a.quantity ?? "0"}</p>
+        )}
+        {!a.includeInNetWorth && (
+          <p className="mt-1.5 text-[10px] text-faint">not counted in net worth</p>
+        )}
+      </Card>
+    </Link>
   );
 }
 
-function AccountEditForm({ account: a, onDone }: { account: AccountDto; onDone: () => void }) {
+export function AccountEditForm({ account: a, onDone }: { account: AccountDto; onDone: () => void }) {
   const update = useUpdateAccount();
   const isPriced = a.kind === "priced";
   const [name, setName] = useState(a.name);

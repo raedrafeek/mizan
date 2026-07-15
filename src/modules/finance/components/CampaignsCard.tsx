@@ -140,7 +140,7 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
   );
 }
 
-// quick signed contribution for manual campaigns: "+100" adds, "-50" removes
+// quick contribution for manual campaigns; REMOVE covers raided goals
 function ContributeForm({
   campaign: g,
   exponent,
@@ -152,16 +152,18 @@ function ContributeForm({
 }) {
   const update = useUpdateCampaign();
   const [amount, setAmount] = useState("");
+  const [remove, setRemove] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const delta = parseFloat(amount.replace("−", "-")); // accept typographic minus
-  const valid = !isNaN(delta) && delta !== 0;
+  const value = parseFloat(amount.replace("−", "-")); // accept typographic minus
+  const valid = !isNaN(value) && value !== 0;
 
   async function submit() {
     setErr(null);
     try {
+      const sign = remove || value < 0 ? -1 : 1; // typed minus removes in either mode
       const next = Math.max(
         0,
-        (g.manualProgressMinor ?? 0) + Math.round(delta * 10 ** exponent),
+        (g.manualProgressMinor ?? 0) + sign * Math.round(Math.abs(value) * 10 ** exponent),
       );
       await update.mutateAsync({
         id: g.id,
@@ -175,6 +177,26 @@ function ContributeForm({
 
   return (
     <div className="mb-2 flex flex-wrap items-center gap-2 rounded-[9px] border border-border-3 bg-card-hover p-2.5">
+      <div className="flex gap-0.5 rounded-lg border border-border-3 bg-surface p-0.5">
+        <button
+          onClick={() => setRemove(false)}
+          className={cn(
+            "rounded-md px-2 py-1 text-[9.5px] font-bold tracking-[0.5px]",
+            remove ? "text-faint" : "bg-inset-2 text-pos",
+          )}
+        >
+          ＋ ADD
+        </button>
+        <button
+          onClick={() => setRemove(true)}
+          className={cn(
+            "rounded-md px-2 py-1 text-[9.5px] font-bold tracking-[0.5px]",
+            remove ? "bg-inset-2 text-neg" : "text-faint",
+          )}
+        >
+          − REMOVE
+        </button>
+      </div>
       <input
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
@@ -187,13 +209,12 @@ function ContributeForm({
         }}
         className="num w-24 rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-right text-xs outline-none"
       />
-      <span className="text-[10px] text-faint">use − to remove (e.g. −50)</span>
       <button
         onClick={submit}
         disabled={update.isPending || !valid}
         className="rounded-lg bg-ink px-3 py-1.5 text-[10.5px] font-bold tracking-wide text-surface disabled:opacity-60"
       >
-        ADD
+        SAVE
       </button>
       <button onClick={onDone} className="px-1.5 text-[10.5px] text-muted hover:text-ink">
         Cancel
