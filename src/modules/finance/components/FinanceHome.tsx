@@ -9,7 +9,9 @@ import { useAccounts, useCurrencies } from "../api/hooks";
 import { AccountsStrip } from "./AccountsStrip";
 import { QuickLog } from "./QuickLog";
 import { TransactionList } from "./TransactionList";
-import { NetPositionHero } from "./NetPositionHero";
+import { SafeToSpendHero } from "./SafeToSpendHero";
+import { InsightCard } from "./InsightCard";
+import { UpNextCard } from "./UpNextCard";
 import { CashFlowCard } from "./CashFlowCard";
 
 const SELECTED_KEY = "mizan.spendFrom";
@@ -74,7 +76,8 @@ export function FinanceHome() {
 
   return (
     <div className="flex flex-col gap-5">
-      <NetPositionHero />
+      <SafeToSpendHero />
+      <InsightCard />
       <AccountsStrip
         accounts={accounts}
         defaultCurrency={currencyData?.defaultCurrency ?? "KWD"}
@@ -82,8 +85,13 @@ export function FinanceHome() {
         selectedId={selected?.id ?? null}
         onSelect={select}
       />
-      <QuickLog account={selected} />
+      {/* desktop inline quick-log; phones use the FAB → /log numpad */}
+      <div className="hidden sm:block">
+        <QuickLog account={selected} />
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
+        <UpNextCard />
+        <CashFlowCard month={month} onMonthChange={setMonth} />
         <Card
           title="RECENT"
           right={
@@ -94,7 +102,6 @@ export function FinanceHome() {
         >
           <TransactionList limit={6} />
         </Card>
-        <CashFlowCard month={month} onMonthChange={setMonth} />
       </div>
     </div>
   );
