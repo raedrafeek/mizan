@@ -10,6 +10,7 @@ import { AccountsStrip } from "./AccountsStrip";
 import { QuickLog } from "./QuickLog";
 import { TransactionList } from "./TransactionList";
 import { SafeToSpendHero } from "./SafeToSpendHero";
+import { MonthStrip } from "./MonthStrip";
 import { InsightCard } from "./InsightCard";
 import { UpNextCard } from "./UpNextCard";
 import { CashFlowCard } from "./CashFlowCard";
@@ -77,6 +78,7 @@ export function FinanceHome() {
   return (
     <div className="flex flex-col gap-5">
       <SafeToSpendHero />
+      <MonthStrip />
       <InsightCard />
       <AccountsStrip
         accounts={accounts}

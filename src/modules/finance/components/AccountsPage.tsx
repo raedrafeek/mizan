@@ -13,6 +13,7 @@ import {
   useCurrencies,
   useUpdateAccount,
 } from "../api/hooks";
+import { useCampaigns } from "../api/hooks-m3";
 import type { AccountDto } from "../types";
 import { Icon } from "./Icon";
 
@@ -29,7 +30,34 @@ const SUBTYPES = [
 export function AccountsPage() {
   const { data: accounts } = useAccounts();
   const { data: currencyData } = useCurrencies();
+  const { data: campaigns } = useCampaigns();
   const [showForm, setShowForm] = useState(false);
+  const def = currencyData?.defaultCurrency ?? "KWD";
+
+  // account → the goal it feeds (linked campaigns)
+  const goalByAccount = new Map(
+    (campaigns ?? [])
+      .filter((c) => c.linkedAccountId && c.status === "active")
+      .map((c) => [c.linkedAccountId as string, c.name]),
+  );
+
+  const list = accounts ?? [];
+  const holdings = list.filter((a) => a.kind === "priced");
+  const savings = list.filter(
+    (a) =>
+      a.kind === "transactional" &&
+      (goalByAccount.has(a.id) || /sav|deposit|fund/i.test(a.name)),
+  );
+  const savingIds = new Set(savings.map((a) => a.id));
+  const spending = list.filter(
+    (a) => a.kind === "transactional" && !savingIds.has(a.id),
+  );
+
+  const groups: [string, AccountDto[]][] = [
+    ["SPENDING", spending],
+    ["SAVINGS", savings],
+    ["HOLDINGS", holdings],
+  ];
 
   return (
     <div className="flex flex-col gap-4">
@@ -45,11 +73,22 @@ export function AccountsPage() {
 
       {showForm && <AccountForm onDone={() => setShowForm(false)} />}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(accounts ?? []).map((a) => (
-          <AccountRow key={a.id} account={a} defaultCurrency={currencyData?.defaultCurrency ?? "KWD"} />
+      {groups
+        .filter(([, items]) => items.length > 0)
+        .map(([title, items]) => (
+          <Card key={title} title={title}>
+            <div className="flex flex-col">
+              {items.map((a) => (
+                <AccountLine
+                  key={a.id}
+                  account={a}
+                  defaultCurrency={def}
+                  goalName={goalByAccount.get(a.id)}
+                />
+              ))}
+            </div>
+          </Card>
         ))}
-      </div>
 
       <ArchivedAccounts />
     </div>
@@ -99,71 +138,81 @@ function ArchivedAccounts() {
   );
 }
 
-/** List card — tap through to the account screen for actions and activity. */
-function AccountRow({
+/** One human sentence about the account — what it does, not what table it's in. */
+function hintFor(a: AccountDto, goalName?: string): string {
+  if (a.kind === "priced") {
+    const status =
+      a.priceSource === "manual"
+        ? "manual price"
+        : a.balance?.priceStatus === "ok"
+          ? "live price"
+          : a.balance?.priceStatus === "stale"
+            ? "price stale"
+            : "no price — check symbol";
+    return `${a.quantity ?? "0"} × ${a.assetSymbol ?? "?"} · ${status}`;
+  }
+  if (goalName) return `feeds the “${goalName}” goal`;
+  if (a.subtype === "credit_card" && (a.balance?.balanceMinor ?? 0) < 0)
+    return "credit card · outstanding balance";
+  return `${a.subtype.replace("_", " ")} · ${a.currencyCode}`;
+}
+
+/** Grouped list row — tap through to the account screen for actions and activity. */
+function AccountLine({
   account: a,
   defaultCurrency,
+  goalName,
 }: {
   account: AccountDto;
   defaultCurrency: string;
+  goalName?: string;
 }) {
   const { privacy } = usePrivacy();
+  const negative = (a.balance?.balanceMinor ?? 0) < 0;
 
   return (
-    <Link href={`/accounts/${a.id}`} className="block">
-      <Card
+    <Link
+      href={`/accounts/${a.id}`}
+      className="flex items-center gap-3 rounded-xl px-1.5 py-2.5 hover:bg-card-hover"
+    >
+      <span
         className={cn(
-          "h-full transition-colors hover:border-border-5",
-          a.isLiability && "border-neg/25 bg-neg/5",
+          "flex h-9 w-9 flex-none items-center justify-center rounded-xl",
+          a.isLiability ? "bg-neg/10 text-neg/80" : "bg-inset text-muted",
         )}
       >
-        <div className="flex items-start gap-2.5">
-          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-inset text-muted">
-            <Icon name={a.icon} size={15} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-ink-2">
-              {a.name}
-              {a.mask && <span className="num ml-1.5 text-[10px] text-faint">{a.mask}</span>}
-            </p>
-            <p className="num mt-0.5 text-[10.5px] text-faint">
-              {a.subtype.replace("_", " ")} · {a.currencyCode}
-              {a.kind === "priced" && a.assetSymbol && ` · ${a.assetSymbol}`}
-            </p>
-          </div>
-          <span className="mt-1 text-ghost">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 5l7 7-7 7" />
-            </svg>
-          </span>
-        </div>
-
-        <p
-          className={cn(
-            "num mt-3 text-lg font-semibold",
-            (a.balance?.balanceMinor ?? 0) < 0 ? "text-neg" : "text-ink",
-          )}
-        >
+        <Icon name={a.icon} size={15} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-semibold text-ink-2">
+          {a.name}
+          {a.mask && <span className="num ml-1.5 text-[10px] font-normal text-faint">{a.mask}</span>}
+        </span>
+        <span className="num mt-0.5 block truncate text-[10.5px] text-faint">
+          {hintFor(a, goalName)}
+          {!a.includeInNetWorth && " · not counted"}
+        </span>
+      </span>
+      <span className="flex-none text-right">
+        <span className={cn("num block text-[13.5px] font-semibold", negative ? "text-neg" : "text-ink")}>
           {a.balance ? masked(privacy, fmt(a.balance.balanceMinor, a.currency)) : "—"}{" "}
-          <span className="text-xs font-medium text-faint">{a.currencyCode}</span>
-          {a.balance?.priceStatus === "missing" ? (
-            <span className="ml-2 text-[10px] font-bold text-neg">NO PRICE — check symbol</span>
-          ) : (
-            a.balance?.stale && <span className="ml-2 text-[10px] text-warn">stale</span>
-          )}
-        </p>
-        {a.balance && a.currencyCode !== defaultCurrency && (
-          <p className="num mt-0.5 text-[10.5px] text-faint">
+          <span className="text-[10px] font-medium text-faint">{a.currencyCode}</span>
+        </span>
+        {a.balance?.priceStatus === "missing" ? (
+          <span className="block text-[9.5px] font-bold text-neg">NO PRICE</span>
+        ) : a.balance && a.currencyCode !== defaultCurrency ? (
+          <span className="num block text-[10px] text-faint">
             ≈ {masked(privacy, fmt(a.balance.balanceDefaultMinor, { exponent: 3 }))} {defaultCurrency}
-          </p>
+          </span>
+        ) : (
+          a.balance?.stale && <span className="block text-[9.5px] text-warn">stale</span>
         )}
-        {a.kind === "priced" && (
-          <p className="num mt-1.5 text-[10.5px] text-faint">Qty: {a.quantity ?? "0"}</p>
-        )}
-        {!a.includeInNetWorth && (
-          <p className="mt-1.5 text-[10px] text-faint">not counted in net worth</p>
-        )}
-      </Card>
+      </span>
+      <span className="flex-none text-ghost">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 5l7 7-7 7" />
+        </svg>
+      </span>
     </Link>
   );
 }
