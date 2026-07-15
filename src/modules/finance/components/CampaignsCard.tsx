@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
+import { ConfirmButton } from "@/shell/ConfirmButton";
 import { masked, usePrivacy } from "@/shell/privacy";
 import { useAccounts, useCurrencies } from "../api/hooks";
 import {
@@ -57,85 +58,150 @@ function chipFor(g: CampaignDto): { label: string; cls: string } {
   return { label: "ACTIVE", cls: "text-muted bg-inset-2" };
 }
 
+function GoalBar({ campaign: g, paused }: { campaign: CampaignDto; paused: boolean }) {
+  return (
+    <div className="relative h-[5px] rounded-[3px] bg-inset-2">
+      <span
+        className={cn(
+          "absolute inset-y-0 left-0 rounded-[3px]",
+          paused ? "bg-ghost" : g.pacePct !== null && g.pacePct - g.pct > 5 ? "bg-neg" : "bg-warn",
+        )}
+        style={{ width: `${g.pct}%` }}
+      />
+      {g.pacePct !== null && !paused && (
+        <span
+          className="absolute -top-[3px] h-[11px] w-[1.5px] bg-ink"
+          style={{ left: `${g.pacePct}%` }}
+        />
+      )}
+    </div>
+  );
+}
+
 function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
   const { data: currencyData } = useCurrencies();
   const { privacy } = usePrivacy();
-  const update = useUpdateCampaign();
-  const del = useDeleteCampaign();
-  const [mode, setMode] = useState<"add" | "edit" | null>(null);
+  const [open, setOpen] = useState(false);
   const exponent =
     currencyData?.currencies.find((c) => c.code === currencyData.defaultCurrency)
       ?.exponent ?? 3;
   const chip = chipFor(g);
   const paused = g.status === "paused";
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className={cn("block w-full text-left", paused && "opacity-50")}
+      >
+        <div className="mb-1.5 flex items-center gap-2">
+          <span className="truncate text-[14px] font-semibold text-ink-2">{g.name}</span>
+          <span className={cn("flex-none rounded-[5px] px-1.5 py-0.5 text-[10px] font-bold tracking-[0.5px]", chip.cls)}>
+            {chip.label}
+          </span>
+          <span className="num ml-auto flex-none text-[13px] text-ink">{g.pct}%</span>
+        </div>
+        <GoalBar campaign={g} paused={paused} />
+        <p className="num mt-1.5 text-[11.5px] text-muted">
+          {masked(privacy, formatMinor(g.progressMinor, exponent))} <span className="text-ghost">/</span>{" "}
+          {masked(privacy, formatMinor(g.targetDefaultMinor, exponent))} {currencyData?.defaultCurrency}
+          {g.targetDate && ` · by ${g.targetDate}`}
+          {g.linkedAccountId && " · grows with its account"}
+        </p>
+      </button>
+      {open && <GoalSheet campaign={g} exponent={exponent} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/** Tap-through goal detail: contribute, edit, pause, delete — full-size actions. */
+function GoalSheet({
+  campaign: g,
+  exponent,
+  onClose,
+}: {
+  campaign: CampaignDto;
+  exponent: number;
+  onClose: () => void;
+}) {
+  const { data: currencyData } = useCurrencies();
+  const { privacy } = usePrivacy();
+  const update = useUpdateCampaign();
+  const del = useDeleteCampaign();
+  const [editing, setEditing] = useState(false);
+  const chip = chipFor(g);
+  const paused = g.status === "paused";
   const isManual = !g.linkedAccountId;
 
   return (
-    <div className={cn("group", paused && "opacity-50")}>
-      <div className="mb-1.5 flex items-center gap-2">
-        <span className="text-[12.5px] font-semibold text-ink-2">{g.name}</span>
-        <span className={cn("rounded-[5px] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[0.5px]", chip.cls)}>
-          {chip.label}
-        </span>
-        <span className="num ml-auto text-xs text-ink">{g.pct}%</span>
-        <span className="touch-show-flex hidden gap-1 group-hover:flex">
-          {isManual && !paused && (
-            <button
-              onClick={() => setMode(mode === "add" ? null : "add")}
-              className="text-[9px] font-bold tracking-[1px] text-faint hover:text-pos"
-            >
-              ADD
-            </button>
-          )}
+    <div
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl">
+        <div className="mb-3 flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-ink-2">{g.name}</p>
+          <span className={cn("flex-none rounded-[5px] px-1.5 py-0.5 text-[10px] font-bold tracking-[0.5px]", chip.cls)}>
+            {chip.label}
+          </span>
           <button
-            onClick={() => setMode(mode === "edit" ? null : "edit")}
-            className="text-[9px] font-bold tracking-[1px] text-faint hover:text-ink"
+            onClick={onClose}
+            className="flex-none px-1 text-[18px] leading-none text-faint hover:text-ink"
+            aria-label="Close"
           >
-            EDIT
+            ×
+          </button>
+        </div>
+
+        <GoalBar campaign={g} paused={paused} />
+        <p className="num mt-2 text-[12px] text-muted">
+          {masked(privacy, formatMinor(g.progressMinor, exponent))} of{" "}
+          {masked(privacy, formatMinor(g.targetDefaultMinor, exponent))}{" "}
+          {currencyData?.defaultCurrency}
+          {g.targetDate && ` · by ${g.targetDate}`}
+          {!isManual && " · progress = its account's balance"}
+        </p>
+
+        {isManual && !paused && (
+          <div className="mt-4">
+            <p className="mb-1.5 text-[10.5px] font-bold tracking-[1.5px] text-muted">
+              RECORD A CONTRIBUTION
+            </p>
+            <ContributeForm campaign={g} exponent={exponent} onDone={onClose} />
+          </div>
+        )}
+
+        {editing && (
+          <div className="mt-3">
+            <CampaignEditForm campaign={g} exponent={exponent} onDone={() => setEditing(false)} />
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className="rounded-full border border-border-4 px-4 py-2 text-[11px] font-bold tracking-[0.5px] text-muted hover:text-ink"
+          >
+            Edit
           </button>
           <button
             onClick={() => update.mutate({ id: g.id, status: paused ? "active" : "paused" })}
-            className="text-[9px] font-bold tracking-[1px] text-faint hover:text-ink"
+            className="rounded-full border border-border-4 px-4 py-2 text-[11px] font-bold tracking-[0.5px] text-muted hover:text-ink"
           >
-            {paused ? "RESUME" : "PAUSE"}
+            {paused ? "Resume" : "Pause"}
           </button>
-          <button
-            onClick={() => {
-              if (confirm(`Delete goal "${g.name}"?`)) del.mutate(g.id);
+          <ConfirmButton
+            label="Delete"
+            onConfirm={() => {
+              del.mutate(g.id);
+              onClose();
             }}
-            className="text-[9px] font-bold tracking-[1px] text-faint hover:text-neg"
-          >
-            DEL
-          </button>
-        </span>
-      </div>
-      {mode === "add" && (
-        <ContributeForm campaign={g} exponent={exponent} onDone={() => setMode(null)} />
-      )}
-      {mode === "edit" && (
-        <CampaignEditForm campaign={g} exponent={exponent} onDone={() => setMode(null)} />
-      )}
-      <div className="relative h-[5px] rounded-[3px] bg-inset-2">
-        <span
-          className={cn(
-            "absolute inset-y-0 left-0 rounded-[3px]",
-            paused ? "bg-ghost" : g.pacePct !== null && g.pacePct - g.pct > 5 ? "bg-neg" : "bg-warn",
-          )}
-          style={{ width: `${g.pct}%` }}
-        />
-        {g.pacePct !== null && !paused && (
-          <span
-            className="absolute -top-[3px] h-[11px] w-[1.5px] bg-ink"
-            style={{ left: `${g.pacePct}%` }}
+            className="ml-auto rounded-full border border-neg/35 px-4 py-2 text-[11px] font-bold tracking-[0.5px] text-neg/80 hover:text-neg"
           />
-        )}
+        </div>
       </div>
-      <p className="num mt-1.5 text-[10px] text-faint">
-        {masked(privacy, formatMinor(g.progressMinor, exponent))} <span className="text-ghost">/</span>{" "}
-        {masked(privacy, formatMinor(g.targetDefaultMinor, exponent))} {currencyData?.defaultCurrency}
-        {g.targetDate && ` · by ${g.targetDate}`}
-        {g.linkedAccountId && " · linked"}
-      </p>
     </div>
   );
 }

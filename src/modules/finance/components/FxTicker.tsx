@@ -3,7 +3,7 @@
 import Decimal from "decimal.js";
 import { useAccounts, useCurrencies } from "../api/hooks";
 
-/** Nav FX ticker: rates for the foreign currencies your accounts actually use. */
+/** Quiet rates line for the foreign currencies your accounts actually use. */
 export function FxTicker() {
   const { data } = useCurrencies();
   const { data: accounts } = useAccounts();
@@ -22,18 +22,18 @@ export function FxTicker() {
   if (shown.length === 0) return null;
 
   return (
-    <div className="num flex gap-4 text-[11.5px] text-muted">
-      {shown.map(([code, r]) => (
-        <span key={code} className="flex items-center gap-1.5">
-          <span
-            className={`h-[5px] w-[5px] rounded-full ${r.stale ? "bg-warn" : "bg-pos"}`}
-          />
-          {def}/{code}{" "}
-          <span className="text-ink">
-            {new Decimal(1).div(r.rate).toSignificantDigits(4).toString()}
-          </span>
+    <p className="num text-[12px] text-muted">
+      {shown.map(([code, r], i) => (
+        <span key={code}>
+          {i > 0 && <span className="text-faint"> · </span>}
+          1 {code} ≈{" "}
+          <span className="text-ink-2">
+            {new Decimal(r.rate).toSignificantDigits(4).toString()}
+          </span>{" "}
+          {def}
+          {r.stale && <span className="text-warn"> (old rate)</span>}
         </span>
       ))}
-    </div>
+    </p>
   );
 }

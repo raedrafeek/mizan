@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/shell/Card";
+import { ConfirmButton } from "@/shell/ConfirmButton";
 import { Icon } from "@/modules/finance/components/Icon";
 import { useCategories, useCreateCategory } from "@/modules/finance/api/hooks";
 import { useToast } from "@/shell/toast";
@@ -195,20 +196,20 @@ function CategoryRow({ category: c }: { category: CategoryDto }) {
           {c.name}
         </button>
       )}
-      <button
-        onClick={async () => {
-          if (!confirm(`Archive "${c.name}"? Existing transactions keep it; it disappears from the quick-log.`)) return;
+      <ConfirmButton
+        label="Archive"
+        confirmLabel="Archive? (restorable)"
+        onConfirm={async () => {
           try {
             await update.mutateAsync({ id: c.id, archived: true });
-            toast.success(`Archived "${c.name}"`);
+            toast.success(`Archived "${c.name}" — existing transactions keep it`);
           } catch {
             toast.error("Archive failed");
           }
         }}
-        className="touch-show p-1.5 text-[10px] font-bold tracking-[1px] text-faint opacity-0 hover:text-neg group-hover:opacity-100"
-      >
-        ARCHIVE
-      </button>
+        className="touch-show p-1.5 text-[11px] font-bold tracking-[0.5px] text-faint opacity-0 hover:text-neg group-hover:opacity-100"
+        armedClassName="!text-neg !opacity-100"
+      />
     </div>
   );
 }

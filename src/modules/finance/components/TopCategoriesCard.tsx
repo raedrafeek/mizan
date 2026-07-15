@@ -22,7 +22,7 @@ export function TopCategoriesCard({ month }: { month: string }) {
 
   if (!data)
     return (
-      <Card title="TOP CATEGORIES">
+      <Card title="BUDGETS">
         <CardSkeleton rows={5} />
       </Card>
     );
@@ -42,10 +42,10 @@ export function TopCategoriesCard({ month }: { month: string }) {
 
   return (
     <Card
-      title="TOP CATEGORIES"
+      title="BUDGETS"
       right={
-        <span className="num text-[10px] text-faint">
-          {new Date(month + "-01T00:00:00").toLocaleString("en", { month: "long" }).toUpperCase()} · click amounts to set budgets
+        <span className="num text-[10.5px] text-muted">
+          {new Date(month + "-01T00:00:00").toLocaleString("en", { month: "long" }).toUpperCase()}
         </span>
       }
     >

@@ -85,13 +85,13 @@ export function CashFlowCard({
 
   return (
     <Card title="CASH FLOW" right={<MonthNav month={month} onChange={onMonthChange} />}>
-      <div className="flex flex-col gap-2 text-[12.5px]">
+      <div className="flex flex-col gap-2 text-[13.5px]">
         <p className="flex justify-between">
           <span className="text-muted">Income</span>
           <span className="num text-pos">+{masked(privacy, formatMinor(cf.incomeDefaultMinor, exponent))}</span>
         </p>
         {cf.incomeByCategory.length > 0 && (
-          <p className="num -mt-1 text-right text-[10px] text-faint">
+          <p className="num -mt-1 text-right text-[11px] text-muted">
             {cf.incomeByCategory
               .slice(0, 3)
               .map((c) => `${c.name} ${masked(privacy, formatMinor(c.totalDefaultMinor, exponent))}`)
@@ -100,7 +100,7 @@ export function CashFlowCard({
         )}
         <p className="flex justify-between">
           <span className="text-muted">Expense</span>
-          <span className="num text-neg">−{masked(privacy, formatMinor(cf.expenseDefaultMinor, exponent))}</span>
+          <span className="num text-ink">−{masked(privacy, formatMinor(cf.expenseDefaultMinor, exponent))}</span>
         </p>
         <p className="flex justify-between">
           <span className="text-muted">Savings</span>
@@ -135,8 +135,8 @@ export function CashFlowCard({
             className="flex-1 rounded-[1.5px]"
             style={{
               height: v > 0 ? `${Math.max(8, (v / maxDay) * 100)}%` : "2px",
-              background:
-                v > 0 ? "rgba(240,84,76,0.75)" : "var(--color-inset-2)",
+              // spending bars are information, not alarms
+              background: v > 0 ? "rgba(198,204,212,0.45)" : "var(--color-inset-2)",
             }}
           />
         ))}

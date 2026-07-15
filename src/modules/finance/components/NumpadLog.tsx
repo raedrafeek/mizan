@@ -360,7 +360,7 @@ export function NumpadLog() {
         ) : (
           <button
             onClick={() => setNoteOpen(true)}
-            className="rounded-full border border-border-3 bg-surface px-3 py-1.5 text-[11px] font-semibold text-faint"
+            className="rounded-full border border-border-3 bg-surface px-3 py-1.5 text-[11px] font-semibold text-muted"
           >
             ＋ note
           </button>
@@ -391,7 +391,7 @@ export function NumpadLog() {
                 </span>
                 <span
                   className={cn(
-                    "w-full truncate text-center text-[10px] font-semibold",
+                    "w-full truncate text-center text-[10.5px] font-semibold",
                     sel ? "text-ink" : "text-muted",
                   )}
                 >
@@ -456,7 +456,7 @@ export function NumpadLog() {
         disabled={!canCommit}
         className="mt-3 w-full rounded-2xl bg-ink py-4 text-[13px] font-bold tracking-[2.5px] text-surface transition-transform active:scale-[.98] disabled:opacity-35"
       >
-        COMMIT
+        LOG
       </button>
 
       {/* account picker */}

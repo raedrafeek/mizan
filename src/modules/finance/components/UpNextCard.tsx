@@ -47,13 +47,13 @@ export function UpNextCard() {
             return (
               <div key={h.id} className="flex items-center gap-3 rounded-[9px] px-1.5 py-2.5">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12.5px] font-semibold text-ink-2">
+                  <span className="block truncate text-[14px] font-semibold text-ink-2">
                     {h.name}
                   </span>
                   <span
                     className={cn(
-                      "num mt-0.5 block text-[10px]",
-                      h.warn ? "text-warn" : "text-faint",
+                      "num mt-0.5 block text-[11.5px]",
+                      h.warn ? "text-warn" : "text-muted",
                     )}
                   >
                     {h.daysUntil < 0
@@ -64,7 +64,7 @@ export function UpNextCard() {
                     {h.recurrence ? ` · ${h.recurrence}` : ""}
                   </span>
                 </span>
-                <span className={cn("num text-[12.5px]", out ? "text-neg" : "text-pos")}>
+                <span className={cn("num text-[14px]", out ? "text-ink" : "text-pos")}>
                   {out ? "−" : "+"}
                   {masked(privacy, formatMinor(h.amountMinor, exponentOf(h.currencyCode)))}{" "}
                   <span className="text-[10px] text-faint">{h.currencyCode}</span>

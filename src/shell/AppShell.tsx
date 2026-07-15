@@ -179,8 +179,8 @@ function TabBar({ destinations }: { destinations: Destination[] }) {
         key={d.href}
         href={d.href}
         className={cn(
-          "flex w-16 flex-col items-center gap-1 py-1 text-[9px] font-bold tracking-[0.8px]",
-          active ? "text-ink" : "text-faint",
+          "flex w-16 flex-col items-center gap-1 py-1 text-[10px] font-bold tracking-[0.8px]",
+          active ? "text-ink" : "text-muted",
         )}
       >
         <Icon size={20} />

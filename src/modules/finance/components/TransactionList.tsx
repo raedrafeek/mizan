@@ -4,7 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { CardSkeleton } from "@/shell/Skeleton";
 import { masked, usePrivacy } from "@/shell/privacy";
-import { fmt } from "@/lib/format-money";
+import { fmt, humanDay } from "@/lib/format-money";
 import {
   useCurrencies,
   useTransactions,
@@ -90,15 +90,17 @@ export function TransactionList({
     <div className="flex flex-col gap-0.5">
       {groups.map((g) => (
         <div key={g.date}>
-          <div className="num mt-3 flex items-center justify-between border-b border-border px-1.5 pb-1.5 text-[10px] text-faint first:mt-0">
+          <div className="num mt-3 flex items-center justify-between border-b border-border px-1.5 pb-1.5 text-[11px] text-muted first:mt-0">
             <span>
-              {new Date(g.date + "T00:00:00").toLocaleDateString("en", {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-              })}
+              {["Today", "Yesterday"].includes(humanDay(g.date))
+                ? humanDay(g.date)
+                : new Date(g.date + "T00:00:00").toLocaleDateString("en", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  })}
             </span>
-            <span className={cn(g.netDefault < 0 ? "text-neg" : "text-pos")}>
+            <span className={cn(g.netDefault < 0 ? "text-muted" : "text-pos")}>
               {g.netDefault < 0 ? "−" : "+"}
               {masked(privacy, fmt(Math.abs(g.netDefault), { exponent: defExponent }))}{" "}
               {currencyData?.defaultCurrency}
@@ -145,21 +147,22 @@ function TransactionRow({
   return (
     <button
       onClick={onOpen}
-      className="flex w-full items-center gap-2.5 rounded-[9px] px-1.5 py-2 text-left hover:bg-card-hover"
+      className="flex w-full items-center gap-3 rounded-[9px] px-1.5 py-2.5 text-left hover:bg-card-hover"
     >
-      <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-inset text-muted">
-        <Icon name={t.category?.icon ?? "other"} size={13} />
+      <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-inset text-muted">
+        <Icon name={t.category?.icon ?? "other"} size={14} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12.5px] font-semibold text-ink-2">
+        <span className="block truncate text-[14px] font-semibold text-ink-2">
           {label}
         </span>
-        <span className="num mt-0.5 block text-[10px] text-faint">
-          {t.date} · {t.account.name}
+        <span className="num mt-0.5 block truncate text-[11.5px] text-muted">
+          {humanDay(t.date)} · {t.account.name}
           {t.note ? ` · ${t.note}` : ""}
         </span>
       </span>
-      <span className={cn("num text-[12.5px]", sign < 0 ? "text-neg" : "text-pos")}>
+      {/* spending is normal life, not an alarm — red is reserved for problems */}
+      <span className={cn("num text-[14px]", sign < 0 ? "text-ink" : "text-pos")}>
         {sign < 0 ? "−" : "+"}
         {masked(privacy, fmt(Math.abs(t.amountMinor), { exponent }))} {t.currencyCode}
       </span>

@@ -22,8 +22,8 @@ export function MonthStrip() {
 
   const cell = (label: string, value: React.ReactNode) => (
     <div className="flex-1 text-center">
-      <p className="num text-[14px] font-semibold">{value}</p>
-      <p className="mt-0.5 text-[9.5px] font-bold tracking-[1.5px] text-faint">{label}</p>
+      <p className="num text-[15px] font-semibold">{value}</p>
+      <p className="mt-0.5 text-[10px] font-bold tracking-[1.5px] text-muted">{label}</p>
     </div>
   );
 
@@ -37,7 +37,7 @@ export function MonthStrip() {
       )}
       {cell(
         "OUT",
-        <span className="text-neg">
+        <span className="text-ink">
           −{masked(privacy, formatMinor(cf.expenseDefaultMinor, exponent))}
         </span>,
       )}

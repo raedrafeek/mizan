@@ -57,20 +57,26 @@ export function SafeToSpendHero() {
   const usedPct = totalBudget > 0 ? Math.min(100, (budgetedSpend / totalBudget) * 100) : 0;
   const pacePct = (dayOfMonth / daysInMonth) * 100;
 
+  // summary surfaces round to whole units — exact figures live in the breakdown
+  const whole = (minor: number) =>
+    Math.round(Math.abs(minor) / 10 ** exponent).toLocaleString("en");
+  const oneDecimal = (minor: number) =>
+    (Math.abs(minor) / 10 ** exponent).toFixed(1);
+
   // no budgets yet — an honest fallback instead of a fake zero
   if (totalBudget === 0) {
     const avg = dayOfMonth > 0 ? Math.round(data.cashflow.expenseDefaultMinor / dayOfMonth) : 0;
     return (
       <div className="py-2">
-        <p className="text-[11px] font-semibold tracking-[2.5px] text-faint">
+        <p className="text-[11px] font-semibold tracking-[2.5px] text-muted">
           SPENT THIS MONTH
         </p>
         <p className="num mt-2 text-4xl font-semibold leading-none tracking-tight sm:text-5xl">
-          {masked(privacy, formatMinor(data.cashflow.expenseDefaultMinor, exponent))}{" "}
+          {masked(privacy, whole(data.cashflow.expenseDefaultMinor))}{" "}
           <span className="text-lg font-medium text-faint sm:text-xl">{def}</span>
         </p>
-        <p className="num mt-3 text-[12.5px] text-muted">
-          ≈ {masked(privacy, formatMinor(avg, exponent))} a day ·{" "}
+        <p className="num mt-3 text-[13.5px] text-muted">
+          ≈ {masked(privacy, oneDecimal(avg))} a day ·{" "}
           <Link href="/plan" className="text-ink underline underline-offset-2">
             set budgets
           </Link>{" "}
@@ -83,7 +89,7 @@ export function SafeToSpendHero() {
   return (
     <div className="py-2">
       <button onClick={() => setOpen(true)} className="block text-left">
-        <p className="text-[11px] font-semibold tracking-[2.5px] text-faint">
+        <p className="text-[11px] font-semibold tracking-[2.5px] text-muted">
           SAFE TO SPEND · {new Date(month + "-01T00:00:00").toLocaleString("en", { month: "long" }).toUpperCase()}
         </p>
         <p
@@ -93,15 +99,15 @@ export function SafeToSpendHero() {
           )}
         >
           {over && !privacy ? "−" : ""}
-          {masked(privacy, formatMinor(Math.abs(left), exponent))}{" "}
+          {masked(privacy, whole(left))}{" "}
           <span className="text-lg font-medium text-faint sm:text-xl">{def}</span>
         </p>
-        <p className="num mt-3 text-[12.5px] text-muted">
+        <p className="num mt-3 text-[13.5px] text-muted">
           {over ? (
             <>over budget with <b className="text-ink">{daysLeft}</b> days to go — tap to see where</>
           ) : (
             <>
-              <b className="text-ink">{masked(privacy, formatMinor(perDay, exponent))}</b> a day for{" "}
+              <b className="text-ink">{masked(privacy, oneDecimal(perDay))}</b> a day for{" "}
               <b className="text-ink">{daysLeft}</b> more days
             </>
           )}

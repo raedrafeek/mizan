@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
+import { ConfirmButton } from "@/shell/ConfirmButton";
 import { masked, usePrivacy } from "@/shell/privacy";
 import { useAccounts, useCategories, useCurrencies } from "../api/hooks";
 import {
@@ -49,89 +50,139 @@ export function HorizonCard() {
 function HorizonRow({ item: h }: { item: HorizonItemDto }) {
   const { data: currencyData } = useCurrencies();
   const { privacy } = usePrivacy();
-  const log = useLogHorizonItem();
-  const del = useDeleteHorizonItem();
-  const [err, setErr] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const exponent =
     currencyData?.currencies.find((c) => c.code === h.currencyCode)?.exponent ?? 2;
   const out = h.direction === "outflow";
 
-  if (editing) {
-    return <HorizonForm item={h} onDone={() => setEditing(false)} />;
-  }
-
   return (
-    <div className="group rounded-[9px] px-1.5 py-2 hover:bg-card-hover">
-      <div className="flex items-center gap-2.5">
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center gap-3 rounded-[9px] px-1.5 py-2.5 text-left hover:bg-card-hover"
+      >
         <span
           className={cn(
-            "flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg",
-            h.warn ? "bg-warn/10 text-warn" : "bg-inset text-faint",
+            "flex h-8 w-8 flex-none items-center justify-center rounded-lg",
+            h.warn ? "bg-warn/10 text-warn" : "bg-inset text-muted",
           )}
         >
           {h.warn ? (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z M12 9v4.5 M12 17h.01" />
             </svg>
           ) : (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 5.5h16v15H4z M8 3v4 M16 3v4 M4 10h16" />
             </svg>
           )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[12.5px] font-semibold text-ink-2">
+          <span className="block truncate text-[14px] font-semibold text-ink-2">
             {h.name}
-            {h.recurrence && (
-              <span className="num ml-1.5 text-[9px] tracking-[1px] text-faint">
-                {h.recurrence.toUpperCase()}
-              </span>
-            )}
           </span>
-          <span className="num mt-0.5 block text-[10px] text-faint">
-            {h.dueDate}
-            <span className={cn(h.warn ? "text-warn" : "text-faint")}>
-              {" "}· {h.daysUntil < 0 ? `${-h.daysUntil}d OVERDUE` : `${h.daysUntil} DAYS`}
-            </span>
+          <span className={cn("num mt-0.5 block text-[11.5px]", h.warn ? "text-warn" : "text-muted")}>
+            {h.daysUntil < 0
+              ? `${-h.daysUntil}d overdue`
+              : h.daysUntil === 0
+                ? "due today"
+                : `in ${h.daysUntil} days`}
+            {h.recurrence ? ` · ${h.recurrence}` : ""}
           </span>
         </span>
-        <span className={cn("num text-[12.5px]", out ? "text-neg" : "text-pos")}>
+        <span className={cn("num flex-none text-[14px]", out ? "text-ink" : "text-pos")}>
           {out ? "−" : "+"}
           {masked(privacy, formatMinor(h.amountMinor, exponent))} {h.currencyCode}
         </span>
-        <span className="touch-show-flex hidden flex-col gap-1 group-hover:flex">
+      </button>
+      {open && <UpcomingSheet item={h} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/** Tap-through upcoming-item detail: log it, edit, delete — full-size actions. */
+function UpcomingSheet({ item: h, onClose }: { item: HorizonItemDto; onClose: () => void }) {
+  const { data: currencyData } = useCurrencies();
+  const { privacy } = usePrivacy();
+  const log = useLogHorizonItem();
+  const del = useDeleteHorizonItem();
+  const [editing, setEditing] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const exponent =
+    currencyData?.currencies.find((c) => c.code === h.currencyCode)?.exponent ?? 2;
+  const out = h.direction === "outflow";
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl">
+        <div className="mb-1 flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-ink-2">{h.name}</p>
+          <button
+            onClick={onClose}
+            className="flex-none px-1 text-[18px] leading-none text-faint hover:text-ink"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <p className="num text-[12px] text-muted">
+          <span className={cn(out ? "text-ink" : "text-pos")}>
+            {out ? "−" : "+"}
+            {masked(privacy, formatMinor(h.amountMinor, exponent))} {h.currencyCode}
+          </span>{" "}
+          · due {h.dueDate}
+          {h.recurrence ? ` · repeats ${h.recurrence}` : ""}
+          <span className={cn(h.warn ? "text-warn" : "")}>
+            {" "}
+            ({h.daysUntil < 0 ? `${-h.daysUntil}d overdue` : `in ${h.daysUntil} days`})
+          </span>
+        </p>
+
+        {editing ? (
+          <div className="mt-3">
+            <HorizonForm item={h} onDone={() => setEditing(false)} />
+          </div>
+        ) : (
           <button
             onClick={async () => {
               setErr(null);
               try {
                 await log.mutateAsync(h.id);
+                onClose();
               } catch (e) {
                 setErr(e instanceof Error ? e.message : "Failed");
               }
             }}
-            disabled={log.isPending}
-            className="rounded bg-ink px-2 py-0.5 text-[9px] font-bold tracking-[1px] text-surface disabled:opacity-50"
+            disabled={log.isPending || !h.accountId}
+            className="mt-4 w-full rounded-xl bg-ink py-3 text-[12px] font-bold tracking-[1.5px] text-surface disabled:opacity-40"
           >
-            LOG NOW
+            {h.accountId ? "LOG IT NOW" : "SET AN ACCOUNT FIRST (EDIT)"}
           </button>
+        )}
+        {err && <p className="num mt-2 text-[11px] text-neg">{err}</p>}
+
+        <div className="mt-3 flex items-center gap-2">
           <button
-            onClick={() => setEditing(true)}
-            className="text-[9px] font-bold tracking-[1px] text-faint hover:text-ink"
+            onClick={() => setEditing((v) => !v)}
+            className="rounded-full border border-border-4 px-4 py-2 text-[11px] font-bold tracking-[0.5px] text-muted hover:text-ink"
           >
-            EDIT
+            {editing ? "Close edit" : "Edit"}
           </button>
-          <button
-            onClick={() => {
-              if (confirm(`Delete "${h.name}"?`)) del.mutate(h.id);
+          <ConfirmButton
+            label="Delete"
+            onConfirm={() => {
+              del.mutate(h.id);
+              onClose();
             }}
-            className="text-[9px] font-bold tracking-[1px] text-faint hover:text-neg"
-          >
-            DEL
-          </button>
-        </span>
+            className="ml-auto rounded-full border border-neg/35 px-4 py-2 text-[11px] font-bold tracking-[0.5px] text-neg/80 hover:text-neg"
+          />
+        </div>
       </div>
-      {err && <p className="num mt-1 pl-9 text-[10px] text-neg">{err}</p>}
     </div>
   );
 }

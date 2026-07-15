@@ -369,7 +369,7 @@ export function QuickLog({
           onClick={commit}
           className="w-full flex-none rounded-[11px] bg-ink px-5 py-3 text-[12.5px] font-bold tracking-[1.5px] text-surface hover:bg-white sm:w-auto sm:px-6"
         >
-          COMMIT
+          LOG
         </button>
       </div>
 

@@ -39,7 +39,7 @@ export function InsightCard() {
           critical ? "bg-neg" : "bg-warn",
         )}
       />
-      <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-ink-2">{top.title}</p>
+      <p className="min-w-0 flex-1 text-[13.5px] leading-relaxed text-ink-2">{top.title}</p>
       <button
         onClick={() => dismiss.mutate(top.id)}
         className="flex-none px-1 text-[15px] leading-none text-faint hover:text-ink"

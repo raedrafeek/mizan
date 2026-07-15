@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/cn";
+import { ConfirmButton } from "@/shell/ConfirmButton";
 import { useToast } from "@/shell/toast";
 import {
   useCategories,
@@ -70,8 +71,6 @@ export function TransactionSheet({
   }
 
   async function remove() {
-    if (!confirm(isTransfer ? "Delete both legs of this transfer?" : "Delete this entry?"))
-      return;
     setErr(null);
     try {
       await del.mutateAsync(t.id);
@@ -133,7 +132,7 @@ export function TransactionSheet({
               onChange={(e) => setCategoryId(e.target.value)}
               className="rounded-xl border border-border-3 bg-surface px-3 py-2.5 text-xs text-ink outline-none"
             >
-              <option value="">Uncategorized</option>
+              <option value="">No category</option>
               {cats.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -167,13 +166,13 @@ export function TransactionSheet({
           >
             SAVE
           </button>
-          <button
-            onClick={remove}
+          <ConfirmButton
+            label="Delete"
+            confirmLabel={isTransfer ? "Delete both legs?" : "Really delete?"}
+            onConfirm={remove}
             disabled={del.isPending}
-            className="rounded-xl border border-neg/40 px-4 py-3 text-[11.5px] font-bold tracking-[1px] text-neg disabled:opacity-50"
-          >
-            DELETE
-          </button>
+            className="rounded-xl border border-neg/40 px-4 py-3 text-[12px] font-bold text-neg/90 disabled:opacity-50"
+          />
         </div>
       </div>
     </div>

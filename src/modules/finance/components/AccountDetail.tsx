@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/shell/Card";
 import { CardSkeleton, Skeleton } from "@/shell/Skeleton";
+import { ConfirmButton } from "@/shell/ConfirmButton";
 import { cn } from "@/lib/cn";
 import { fmt } from "@/lib/format-money";
 import { masked, usePrivacy } from "@/shell/privacy";
@@ -181,25 +182,19 @@ export function AccountDetail({ id }: { id: string }) {
               FIX BALANCE
             </button>
           )}
-          <button
-            onClick={() => {
-              if (
-                confirm(
-                  `Archive "${a.name}"? Its history is kept and it can be restored from the Accounts page.`,
-                )
-              ) {
-                del.mutate(id, {
-                  onSuccess: () => {
-                    toast.success(`Archived "${a.name}"`);
-                    router.push("/accounts");
-                  },
-                });
-              }
-            }}
-            className="rounded-full border border-neg/35 px-3.5 py-1.5 text-[10.5px] font-bold tracking-[1px] text-neg/80 hover:text-neg"
-          >
-            ARCHIVE
-          </button>
+          <ConfirmButton
+            label="Archive"
+            confirmLabel="Archive? (restorable)"
+            onConfirm={() =>
+              del.mutate(id, {
+                onSuccess: () => {
+                  toast.success(`Archived "${a.name}" — restore it any time from Accounts`);
+                  router.push("/accounts");
+                },
+              })
+            }
+            className="rounded-full border border-neg/35 px-3.5 py-1.5 text-[11px] font-bold tracking-[0.5px] text-neg/80 hover:text-neg"
+          />
           <label className="ml-auto flex cursor-pointer items-center gap-2 text-[11px] text-muted">
             <input
               type="checkbox"

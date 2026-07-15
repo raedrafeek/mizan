@@ -80,15 +80,15 @@ export function FinanceHome() {
       <SafeToSpendHero />
       <MonthStrip />
       <InsightCard />
-      <AccountsStrip
-        accounts={accounts}
-        defaultCurrency={currencyData?.defaultCurrency ?? "KWD"}
-        defaultExponent={defExponent}
-        selectedId={selected?.id ?? null}
-        onSelect={select}
-      />
-      {/* desktop inline quick-log; phones use the FAB → /log numpad */}
-      <div className="hidden sm:block">
+      {/* strip + inline quick-log are the desktop flow; phones use the FAB → /log numpad */}
+      <div className="hidden flex-col gap-5 sm:flex">
+        <AccountsStrip
+          accounts={accounts}
+          defaultCurrency={currencyData?.defaultCurrency ?? "KWD"}
+          defaultExponent={defExponent}
+          selectedId={selected?.id ?? null}
+          onSelect={select}
+        />
         <QuickLog account={selected} />
       </div>
       <div className="grid gap-4 md:grid-cols-2">

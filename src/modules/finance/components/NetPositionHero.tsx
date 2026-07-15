@@ -61,15 +61,29 @@ export function NetPositionHero() {
   return (
     <div className="flex flex-col gap-6 py-2 lg:flex-row lg:items-center lg:gap-14">
       <div>
-        <p className="mb-2.5 flex items-center gap-3 text-[11px] font-semibold tracking-[2.5px] text-faint">
+        <p className="mb-2.5 flex items-center gap-3 text-[11px] font-semibold tracking-[2.5px] text-muted">
           NET WORTH
           {current.anyStale && <span className="text-warn normal-case tracking-normal">· some prices stale</span>}
           <button
             onClick={() => refresh.mutate()}
             disabled={refresh.isPending}
-            className="rounded border border-border-3 px-1.5 py-0.5 text-[9px] tracking-[1px] text-muted hover:text-ink disabled:opacity-50"
+            aria-label="Refresh prices"
+            title="Refresh prices"
+            className="text-muted hover:text-ink disabled:opacity-50"
           >
-            {refresh.isPending ? "…" : "REFRESH"}
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={refresh.isPending ? "animate-spin" : undefined}
+            >
+              <path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5" />
+            </svg>
           </button>
         </p>
         <p className="num text-4xl font-semibold leading-none tracking-tight sm:text-5xl">
@@ -134,16 +148,14 @@ export function NetPositionHero() {
               strokeLinejoin="round"
             />
           </svg>
-          <p className="num mt-1 flex gap-4 text-[10.5px] text-faint">
+          <p className="num mt-1 flex gap-4 text-[10.5px] text-muted">
             <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 border-t-[1.5px] border-pos" /> NET
+              <span className="inline-block w-3 border-t-[1.5px] border-pos" /> net worth
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 border-t-[1.5px] border-dashed border-neg" /> LIAB
+              <span className="inline-block w-3 border-t-[1.5px] border-dashed border-neg" /> debt
             </span>
-            <span className="ml-auto">
-              {series.days}D · FROM {masked(privacy, formatMinor(series.first, exponent))}
-            </span>
+            <span className="ml-auto">last {series.days} days</span>
           </p>
         </div>
       )}
