@@ -11,9 +11,6 @@ import { QuickLog } from "./QuickLog";
 import { TransactionList } from "./TransactionList";
 import { NetPositionHero } from "./NetPositionHero";
 import { CashFlowCard } from "./CashFlowCard";
-import { TopCategoriesCard } from "./TopCategoriesCard";
-import { CampaignsCard } from "./CampaignsCard";
-import { HorizonCard } from "./HorizonCard";
 
 const SELECTED_KEY = "mizan.spendFrom";
 
@@ -66,7 +63,7 @@ export function FinanceHome() {
       <div className="py-16 text-center">
         <p className="text-sm text-muted">No accounts yet.</p>
         <Link
-          href="/finance/accounts"
+          href="/accounts"
           className="mt-3 inline-block rounded-[11px] bg-ink px-5 py-2.5 text-[12.5px] font-bold tracking-wide text-surface"
         >
           ADD YOUR FIRST ACCOUNT
@@ -86,21 +83,18 @@ export function FinanceHome() {
         onSelect={select}
       />
       <QuickLog account={selected} />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card
-          title="RECENT TRANSACTIONS"
+          title="RECENT"
           right={
-            <Link href="/finance/transactions" className="text-[11.5px] text-muted hover:text-ink">
-              View all →
+            <Link href="/activity" className="text-[11.5px] text-muted hover:text-ink">
+              All activity →
             </Link>
           }
         >
           <TransactionList limit={6} />
         </Card>
         <CashFlowCard month={month} onMonthChange={setMonth} />
-        <TopCategoriesCard month={month} />
-        <HorizonCard />
-        <CampaignsCard />
       </div>
     </div>
   );

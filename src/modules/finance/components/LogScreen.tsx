@@ -48,7 +48,7 @@ export function LogScreen() {
     return (
       <p className="py-12 text-center text-sm text-muted">
         No accounts yet —{" "}
-        <Link href="/finance/accounts" className="text-ink underline">
+        <Link href="/accounts" className="text-ink underline">
           add one first
         </Link>
         .

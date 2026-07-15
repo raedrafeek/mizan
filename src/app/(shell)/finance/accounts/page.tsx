@@ -1,5 +1,5 @@
-import { AccountsPage } from "@/modules/finance/components/AccountsPage";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <AccountsPage />;
+  redirect("/accounts");
 }

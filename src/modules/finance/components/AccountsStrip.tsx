@@ -83,7 +83,7 @@ export function AccountsStrip({
           );
         })}
         <Link
-          href="/finance/accounts"
+          href="/accounts"
           className="flex w-16 flex-none items-center justify-center rounded-2xl border border-dashed border-border-5 text-faint hover:border-ghost hover:text-muted"
           aria-label="Manage accounts"
         >

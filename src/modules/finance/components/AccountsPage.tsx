@@ -249,9 +249,9 @@ function AccountRow({
             <button
               onClick={() => setReconciling(true)}
               className="text-muted underline underline-offset-2 hover:text-ink"
-              title="Enter the real balance; an adjustment transaction records the difference"
+              title="Enter what the bank actually says; a balance correction records the difference"
             >
-              reconcile
+              fix balance
             </button>
           )}
         </div>

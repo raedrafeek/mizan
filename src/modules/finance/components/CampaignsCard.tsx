@@ -20,7 +20,7 @@ export function CampaignsCard() {
 
   return (
     <Card
-      title="CAMPAIGNS"
+      title="GOALS"
       right={
         <button
           onClick={() => setAdding((v) => !v)}
@@ -34,7 +34,7 @@ export function CampaignsCard() {
       <div className="flex flex-col gap-4">
         {(campaigns ?? []).length === 0 && !adding && (
           <p className="text-xs text-faint">
-            No campaigns yet — a campaign is a savings goal with a target.
+            No goals yet — set a target for a trip, a fund, anything you&apos;re saving toward.
           </p>
         )}
         {(campaigns ?? []).map((g) => (
@@ -101,7 +101,7 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
           </button>
           <button
             onClick={() => {
-              if (confirm(`Delete campaign "${g.name}"?`)) del.mutate(g.id);
+              if (confirm(`Delete goal "${g.name}"?`)) del.mutate(g.id);
             }}
             className="text-[9px] font-bold tracking-[1px] text-faint hover:text-neg"
           >

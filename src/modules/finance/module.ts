@@ -1,13 +1,14 @@
 import { registerModule } from "@/shell/module-registry";
+import { IconActivity, IconPlan, IconAccounts } from "@/shell/nav-icons";
 
 registerModule({
   id: "finance",
   name: "Finance",
-  navItems: [
-    { label: "Accounts", href: "/finance/accounts" },
-    { label: "Transactions", href: "/finance/transactions" },
-    { label: "Categories", href: "/finance/categories" },
+  destinations: [
+    { id: "activity", label: "Activity", href: "/activity", icon: IconActivity, order: 10 },
+    { id: "plan", label: "Plan", href: "/plan", icon: IconPlan, order: 20 },
+    { id: "accounts", label: "Accounts", href: "/accounts", icon: IconAccounts, order: 30 },
   ],
-  dashboardCards: [], // dashboard hero/cards land in M2; the strip+quicklog are the M1 home
+  dashboardCards: [], // Home composes finance components directly while finance is the only module
   alertKinds: ["budget_pace", "horizon_due", "stale_price"],
 });

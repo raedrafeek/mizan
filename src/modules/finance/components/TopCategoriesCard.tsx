@@ -72,7 +72,7 @@ export function TopCategoriesCard({ month }: { month: string }) {
                 <span className="min-w-0 font-medium text-muted">
                   {c.categoryId !== "none" ? (
                     <Link
-                      href={`/finance/transactions?categoryId=${c.categoryId}&month=${month}`}
+                      href={`/activity?categoryId=${c.categoryId}&month=${month}`}
                       className="hover:text-ink hover:underline"
                     >
                       {c.name}

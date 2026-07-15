@@ -62,7 +62,7 @@ export function NetPositionHero() {
     <div className="flex flex-col gap-6 py-2 lg:flex-row lg:items-center lg:gap-14">
       <div>
         <p className="mb-2.5 flex items-center gap-3 text-[11px] font-semibold tracking-[2.5px] text-faint">
-          NET POSITION
+          NET WORTH
           {current.anyStale && <span className="text-warn normal-case tracking-normal">· some prices stale</span>}
           <button
             onClick={() => refresh.mutate()}

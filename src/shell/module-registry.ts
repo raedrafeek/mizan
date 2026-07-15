@@ -1,13 +1,23 @@
 import type { ComponentType } from "react";
 
 /**
- * Life OS module contract. The shell (nav, dashboard grid, alert tray) renders
- * whatever registered modules contribute — it owns nothing module-specific.
- * A future tasks/health module registers itself here with zero shell edits.
+ * Life OS module contract. The shell (nav rail / tab bar, dashboard, alert
+ * tray) renders whatever registered modules contribute — it owns nothing
+ * module-specific. A future tasks/health module registers itself here with
+ * zero shell edits.
+ *
+ * Navigation: the shell owns Home ("/"); each module contributes
+ * `destinations` that become tabs (phone) / rail items (desktop). When a
+ * second module exists, the shell will scope destinations per active module —
+ * until then all destinations render.
  */
-export interface ModuleNavItem {
-  label: string;
+export interface ModuleDestination {
+  id: string;
+  label: string; // "Activity"
   href: string;
+  icon: ComponentType<{ size?: number }>;
+  /** placement weight — lower renders first */
+  order: number;
 }
 
 export interface ModuleDashboardCard {
@@ -20,9 +30,9 @@ export interface ModuleDashboardCard {
 export interface ModuleDefinition {
   id: string; // "finance", "tasks", ...
   name: string;
-  navItems: ModuleNavItem[];
+  destinations: ModuleDestination[];
   dashboardCards: ModuleDashboardCard[];
-  /** alert kinds this module can emit, for the (future) alert tray */
+  /** alert kinds this module can emit, for the alert tray */
   alertKinds: string[];
 }
 
@@ -42,6 +52,6 @@ export function getDashboardCards(): ModuleDashboardCard[] {
     .sort((a, b) => a.order - b.order);
 }
 
-export function getNavItems(): ModuleNavItem[] {
-  return modules.flatMap((m) => m.navItems);
+export function getDestinations(): ModuleDestination[] {
+  return modules.flatMap((m) => m.destinations).sort((a, b) => a.order - b.order);
 }

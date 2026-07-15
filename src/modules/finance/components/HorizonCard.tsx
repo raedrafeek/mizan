@@ -21,7 +21,7 @@ export function HorizonCard() {
 
   return (
     <Card
-      title="FINANCIAL HORIZON"
+      title="UPCOMING"
       right={
         <button
           onClick={() => setAdding((v) => !v)}
