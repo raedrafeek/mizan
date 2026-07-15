@@ -8,19 +8,27 @@ import { masked, usePrivacy } from "@/shell/privacy";
 import { useCurrencies } from "../api/hooks";
 import { useNetWorth, useRefreshPrices } from "../api/hooks-m2";
 
-function sparkPoints(values: number[], w = 260, h = 72, pad = 4): string {
-  if (values.length < 2) return "";
+function sparkXY(values: number[], w = 260, h = 72, pad = 4): [number, number][] {
+  if (values.length < 2) return [];
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
-  return values
-    .map((v, i) => {
-      const x = (i / (values.length - 1)) * (w - pad * 2) + pad;
-      const y = h - pad - ((v - min) / span) * (h - pad * 2);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
+  return values.map((v, i) => [
+    (i / (values.length - 1)) * (w - pad * 2) + pad,
+    h - pad - ((v - min) / span) * (h - pad * 2),
+  ]);
 }
+
+const toPoints = (xy: [number, number][]) =>
+  xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+
+const toAreaPath = (xy: [number, number][], h = 72) => {
+  if (xy.length < 2) return "";
+  const line = xy
+    .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`)
+    .join("");
+  return `${line}L${xy[xy.length - 1][0].toFixed(1)},${h}L${xy[0][0].toFixed(1)},${h}Z`;
+};
 
 export function NetPositionHero() {
   const { data } = useNetWorth();
@@ -129,36 +137,48 @@ export function NetPositionHero() {
         </p>
       </div>
 
-      {series && series.days > 1 && (
-        <div className="w-full max-w-[260px]">
-          <svg width="260" height="72" viewBox="0 0 260 72" fill="none" className="max-w-full">
-            <polyline
-              points={sparkPoints(series.nets)}
-              stroke="var(--color-pos)"
-              strokeWidth="1.5"
-              fill="none"
-              strokeLinejoin="round"
-            />
-            <polyline
-              points={sparkPoints(series.liabs)}
-              stroke="var(--color-neg)"
-              strokeWidth="1.2"
-              strokeDasharray="4 4"
-              fill="none"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <p className="num mt-1 flex gap-4 text-[10.5px] text-muted">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 border-t-[1.5px] border-pos" /> net worth
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 border-t-[1.5px] border-dashed border-neg" /> debt
-            </span>
-            <span className="ml-auto">last {series.days} days</span>
-          </p>
-        </div>
-      )}
+      {series && series.days > 1 && (() => {
+        const netXY = sparkXY(series.nets);
+        const last = netXY[netXY.length - 1];
+        const hasDebt = current.liabilitiesDefaultMinor > 0;
+        return (
+          <div className="w-full max-w-[260px]">
+            <svg width="260" height="72" viewBox="0 0 260 72" fill="none" className="max-w-full">
+              <path d={toAreaPath(netXY)} fill="rgba(53,208,127,0.09)" />
+              <polyline
+                points={toPoints(netXY)}
+                stroke="var(--color-pos)"
+                strokeWidth="1.8"
+                fill="none"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+              {hasDebt && (
+                <polyline
+                  points={toPoints(sparkXY(series.liabs))}
+                  stroke="var(--color-neg)"
+                  strokeWidth="1.2"
+                  strokeDasharray="4 4"
+                  fill="none"
+                  strokeLinejoin="round"
+                />
+              )}
+              {last && <circle cx={last[0]} cy={last[1]} r="3" fill="var(--color-pos)" />}
+            </svg>
+            <p className="num mt-1 flex gap-4 text-[10.5px] text-muted">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-3 border-t-[1.5px] border-pos" /> net worth
+              </span>
+              {hasDebt && (
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-3 border-t-[1.5px] border-dashed border-neg" /> debt
+                </span>
+              )}
+              <span className="ml-auto">last {series.days} days</span>
+            </p>
+          </div>
+        );
+      })()}
     </div>
   );
 }

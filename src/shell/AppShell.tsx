@@ -17,24 +17,29 @@ import { usePrivacy } from "./privacy";
  * the shell owns only Home.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const destinations = [
     { id: "home", label: "Home", href: "/", icon: IconHome, order: 0 },
     ...getDestinations(),
   ];
+  // the log moment is immersive on phones — no top bar, no tab bar
+  const immersive = pathname === "/log";
 
   return (
     <div className="min-h-screen">
-      <TopBar />
+      {!immersive && <TopBar />}
       <Rail destinations={destinations} />
       <main
         className={cn(
           "mx-auto max-w-[1200px] px-4 py-4 md:px-10 md:py-8",
-          "pb-[calc(92px+env(safe-area-inset-bottom))] md:ml-56 md:pb-10",
+          immersive
+            ? "pb-[calc(24px+env(safe-area-inset-bottom))] pt-[calc(12px+env(safe-area-inset-top))] md:ml-56 md:pb-10"
+            : "pb-[calc(92px+env(safe-area-inset-bottom))] md:ml-56 md:pb-10",
         )}
       >
         {children}
       </main>
-      <TabBar destinations={destinations} />
+      {!immersive && <TabBar destinations={destinations} />}
     </div>
   );
 }

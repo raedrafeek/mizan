@@ -1,23 +1,25 @@
 @import "tailwindcss";
 
 @theme {
-  /* Mizan dark palette — from Reference/Decision Dashboard mockup */
-  --color-bg: #060708;
-  --color-surface: #0b0c0e;
-  --color-card: #101215;
-  --color-card-hover: #15181c;
-  --color-inset: #16191d;
-  --color-inset-2: #1c2026;
-  --color-border: #1b1e23;
-  --color-border-2: #1e2228;
-  --color-border-3: #22262d;
-  --color-border-4: #262b32;
-  --color-border-5: #2a2f37;
-  --color-ink: #eceff3;
-  --color-ink-2: #c6ccd4;
-  --color-muted: #99a1ac;
-  --color-faint: #5c6470;
-  --color-ghost: #3a4048;
+  /* Mizan dark palette — consumer revision: surfaces lifted a step so cards
+     visibly float off the page (the original reference palette was one dense
+     dashboard that never needed elevation) */
+  --color-bg: #08090b;
+  --color-surface: #0b0c0f;
+  --color-card: #14171c;
+  --color-card-hover: #191d23;
+  --color-inset: #1a1e24;
+  --color-inset-2: #20252c;
+  --color-border: #1d2127;
+  --color-border-2: #20252d;
+  --color-border-3: #262c34;
+  --color-border-4: #2b323b;
+  --color-border-5: #323a44;
+  --color-ink: #f2f4f6;
+  --color-ink-2: #c9d0d8;
+  --color-muted: #9aa3af;
+  --color-faint: #626b77;
+  --color-ghost: #3e454e;
   --color-pos: #35d07f;
   --color-neg: #f0544c;
   --color-warn: #f2a93b;

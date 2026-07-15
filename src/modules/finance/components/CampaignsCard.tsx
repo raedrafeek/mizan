@@ -58,23 +58,38 @@ function chipFor(g: CampaignDto): { label: string; cls: string } {
   return { label: "ACTIVE", cls: "text-muted bg-inset-2" };
 }
 
-function GoalBar({ campaign: g, paused }: { campaign: CampaignDto; paused: boolean }) {
+/** Circular progress — the goal's visual signature. Ring color: green on
+ * track / red when meaningfully behind pace / grey when paused. */
+function GoalRing({ campaign: g, paused }: { campaign: CampaignDto; paused: boolean }) {
+  const R = 22;
+  const C = 2 * Math.PI * R;
+  const pct = Math.min(100, Math.max(0, g.pct));
+  const behind = g.pacePct !== null && g.pacePct - g.pct > 5 && g.pct < 100;
+  const color = paused
+    ? "var(--color-ghost)"
+    : behind
+      ? "var(--color-neg)"
+      : "var(--color-pos)";
   return (
-    <div className="relative h-[5px] rounded-[3px] bg-inset-2">
-      <span
-        className={cn(
-          "absolute inset-y-0 left-0 rounded-[3px]",
-          paused ? "bg-ghost" : g.pacePct !== null && g.pacePct - g.pct > 5 ? "bg-neg" : "bg-warn",
-        )}
-        style={{ width: `${g.pct}%` }}
-      />
-      {g.pacePct !== null && !paused && (
-        <span
-          className="absolute -top-[3px] h-[11px] w-[1.5px] bg-ink"
-          style={{ left: `${g.pacePct}%` }}
+    <span className="relative h-[52px] w-[52px] flex-none">
+      <svg width="52" height="52" className="-rotate-90">
+        <circle cx="26" cy="26" r={R} fill="none" stroke="var(--color-inset-2)" strokeWidth="5" />
+        <circle
+          cx="26"
+          cy="26"
+          r={R}
+          fill="none"
+          stroke={color}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={C * (1 - pct / 100)}
         />
-      )}
-    </div>
+      </svg>
+      <span className="num absolute inset-0 flex items-center justify-center text-[11px] font-bold">
+        {g.pct}%
+      </span>
+    </span>
   );
 }
 
@@ -92,22 +107,28 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className={cn("block w-full text-left", paused && "opacity-50")}
+        className={cn("flex w-full items-center gap-3.5 py-1 text-left", paused && "opacity-50")}
       >
-        <div className="mb-1.5 flex items-center gap-2">
-          <span className="truncate text-[14px] font-semibold text-ink-2">{g.name}</span>
-          <span className={cn("flex-none rounded-[5px] px-1.5 py-0.5 text-[10px] font-bold tracking-[0.5px]", chip.cls)}>
-            {chip.label}
+        <GoalRing campaign={g} paused={paused} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-[14px] font-semibold text-ink-2">{g.name}</span>
+            <span className={cn("flex-none rounded-[5px] px-1.5 py-0.5 text-[10px] font-bold tracking-[0.5px]", chip.cls)}>
+              {chip.label}
+            </span>
           </span>
-          <span className="num ml-auto flex-none text-[13px] text-ink">{g.pct}%</span>
-        </div>
-        <GoalBar campaign={g} paused={paused} />
-        <p className="num mt-1.5 text-[11.5px] text-muted">
-          {masked(privacy, formatMinor(g.progressMinor, exponent))} <span className="text-ghost">/</span>{" "}
-          {masked(privacy, formatMinor(g.targetDefaultMinor, exponent))} {currencyData?.defaultCurrency}
-          {g.targetDate && ` · by ${g.targetDate}`}
-          {g.linkedAccountId && " · grows with its account"}
-        </p>
+          <span className="num mt-1 block truncate text-[11.5px] text-muted">
+            {masked(privacy, formatMinor(g.progressMinor, exponent))} of{" "}
+            {masked(privacy, formatMinor(g.targetDefaultMinor, exponent))} {currencyData?.defaultCurrency}
+            {g.targetDate && ` · by ${g.targetDate}`}
+            {g.linkedAccountId && " · grows with its account"}
+          </span>
+        </span>
+        <span className="flex-none text-ghost">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
       </button>
       {open && <GoalSheet campaign={g} exponent={exponent} onClose={() => setOpen(false)} />}
     </>
@@ -155,14 +176,16 @@ function GoalSheet({
           </button>
         </div>
 
-        <GoalBar campaign={g} paused={paused} />
-        <p className="num mt-2 text-[12px] text-muted">
-          {masked(privacy, formatMinor(g.progressMinor, exponent))} of{" "}
-          {masked(privacy, formatMinor(g.targetDefaultMinor, exponent))}{" "}
-          {currencyData?.defaultCurrency}
-          {g.targetDate && ` · by ${g.targetDate}`}
-          {!isManual && " · progress = its account's balance"}
-        </p>
+        <div className="flex items-center gap-3.5">
+          <GoalRing campaign={g} paused={paused} />
+          <p className="num text-[12px] text-muted">
+            {masked(privacy, formatMinor(g.progressMinor, exponent))} of{" "}
+            {masked(privacy, formatMinor(g.targetDefaultMinor, exponent))}{" "}
+            {currencyData?.defaultCurrency}
+            {g.targetDate && ` · by ${g.targetDate}`}
+            {!isManual && " · progress = its account's balance"}
+          </p>
+        </div>
 
         {isManual && !paused && (
           <div className="mt-4">

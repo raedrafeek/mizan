@@ -71,7 +71,7 @@ export function SafeToSpendHero() {
         <p className="text-[11px] font-semibold tracking-[2.5px] text-muted">
           SPENT THIS MONTH
         </p>
-        <p className="num mt-2 text-4xl font-semibold leading-none tracking-tight sm:text-5xl">
+        <p className="num mt-2 text-[42px] font-semibold leading-none tracking-tight sm:text-5xl">
           {masked(privacy, whole(data.cashflow.expenseDefaultMinor))}{" "}
           <span className="text-lg font-medium text-faint sm:text-xl">{def}</span>
         </p>
@@ -94,7 +94,7 @@ export function SafeToSpendHero() {
         </p>
         <p
           className={cn(
-            "num mt-2 text-4xl font-semibold leading-none tracking-tight sm:text-5xl",
+            "num mt-2 text-[42px] font-semibold leading-none tracking-tight sm:text-5xl",
             over && "text-neg",
           )}
         >

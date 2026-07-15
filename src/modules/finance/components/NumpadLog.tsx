@@ -252,6 +252,18 @@ export function NumpadLog() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col">
+      {/* immersive sheet chrome on phones: grab handle + close */}
+      <div className="relative mb-3 md:hidden">
+        <span className="mx-auto block h-1 w-9 rounded-full bg-border-4" />
+        <button
+          onClick={() => (history.length > 1 ? history.back() : (location.href = "/"))}
+          aria-label="Close"
+          className="absolute -top-1.5 right-0 px-2 text-[19px] leading-none text-faint hover:text-ink"
+        >
+          ×
+        </button>
+      </div>
+
       {/* mode */}
       <div className="mx-auto flex gap-1 rounded-xl border border-border-3 bg-surface p-1">
         {(
