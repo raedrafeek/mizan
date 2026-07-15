@@ -1,6 +1,6 @@
-import { LogScreen } from "@/modules/finance/components/LogScreen";
+import { NumpadLog } from "@/modules/finance/components/NumpadLog";
 
-// Phone-first quick-log route — PWA shortcut target.
+// The log moment — numpad-first, PWA shortcut target, FAB destination.
 export default function LogPage() {
-  return <LogScreen />;
+  return <NumpadLog />;
 }

@@ -85,6 +85,8 @@ function useInvalidateFinance() {
   return () => {
     qc.invalidateQueries({ queryKey: ["accounts"] });
     qc.invalidateQueries({ queryKey: ["transactions"] });
+    qc.invalidateQueries({ queryKey: ["cashflow"] });
+    qc.invalidateQueries({ queryKey: ["networth"] });
   };
 }
 
