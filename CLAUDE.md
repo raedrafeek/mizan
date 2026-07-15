@@ -90,6 +90,8 @@ The original approved plan: `C:\Users\RaedRafeek\.claude\plans\hi-i-was-crispy-m
 | c2e9cfe | **Scale+Privacy**: transactions filter bar (account/category/month/note search) + drill-down from Top Categories, `/finance/categories` management page (add/rename/archive), privacy mode covers all amounts |
 | c2bc241 | **Demo dataset**: `scripts/demo-seed.ts` (8 realistic accounts, 730 txns over 1yr, budgets/campaigns/horizon, 363 snapshots; IDs tracked in Setting `demo.seed`) + `scripts/demo-clean.ts` (exact removal). Fix: crypto quote freshness now per-coin (new coin no longer starved by another coin's fresh quote) |
 | 81be2c6 | **Campaign contributions**: ADD (signed increment, "-50" removes, clamped ≥0) + EDIT (name/target/date/saved-so-far) on campaign rows — manual campaigns previously had no way to update progress |
+| 1e0ac4d | **Mobile quick-log fix**: flex-wrap into 3 rows on phones (controls / category rail / full-width COMMIT) — rail was collapsing to 0 width, COMMIT protruded |
+| 10a7f9b | **Edit/restore completeness audit**: horizon EDIT (+ recurrence clearable to one-off), account EDIT (name/mask/symbol/manual price), unarchive UI for categories+accounts (`?archived=1` + RESTORE), campaign tracking-mode switch (manual ↔ linked) |
 
 Everything from the full project review (2026-07-13) is complete. The user is
 actively logging real data (real accounts + transactions exist in the DB —
