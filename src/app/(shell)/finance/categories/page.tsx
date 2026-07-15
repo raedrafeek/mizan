@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/shell/Card";
 import { Icon } from "@/modules/finance/components/Icon";
 import { useCategories, useCreateCategory } from "@/modules/finance/api/hooks";
@@ -21,9 +21,21 @@ function useUpdateCategory() {
       return res.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["categories"] }); // prefix-matches the archived list too
       qc.invalidateQueries({ queryKey: ["cashflow"] });
     },
+  });
+}
+
+function useArchivedCategories() {
+  return useQuery({
+    queryKey: ["categories", "archived"],
+    queryFn: async (): Promise<CategoryDto[]> => {
+      const res = await fetch("/api/finance/categories?archived=1");
+      if (!res.ok) throw new Error("Failed to load archived categories");
+      return res.json();
+    },
+    staleTime: 60_000,
   });
 }
 
@@ -90,7 +102,50 @@ export default function CategoriesPage() {
           </div>
         </Card>
       ))}
+
+      <ArchivedCategories />
     </div>
+  );
+}
+
+function ArchivedCategories() {
+  const { data: archived } = useArchivedCategories();
+  const update = useUpdateCategory();
+  const toast = useToast();
+  if (!archived || archived.length === 0) return null;
+
+  return (
+    <Card title="ARCHIVED">
+      <div className="flex flex-col gap-0.5">
+        {archived.map((c) => (
+          <div
+            key={c.id}
+            className="group flex items-center gap-2.5 rounded-[9px] px-1.5 py-2 hover:bg-card-hover"
+          >
+            <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-inset text-ghost">
+              <Icon name={c.icon} size={13} />
+            </span>
+            <span className="flex-1 truncate text-[12.5px] text-faint">
+              {c.name}
+              <span className="ml-2 text-[9.5px] tracking-[0.5px]">{c.type.toUpperCase()}</span>
+            </span>
+            <button
+              onClick={async () => {
+                try {
+                  await update.mutateAsync({ id: c.id, archived: false });
+                  toast.success(`Restored "${c.name}"`);
+                } catch {
+                  toast.error("Restore failed");
+                }
+              }}
+              className="p-1.5 text-[10px] font-bold tracking-[1px] text-faint hover:text-pos"
+            >
+              RESTORE
+            </button>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 

@@ -3,9 +3,11 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // ?archived=1 lists archived categories (for the restore UI)
+  const archived = req.nextUrl.searchParams.get("archived") === "1";
   const categories = await prisma.category.findMany({
-    where: { archivedAt: null },
+    where: { archivedAt: archived ? { not: null } : null },
     orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
   });
   return NextResponse.json(jsonSafe(categories));

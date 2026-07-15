@@ -110,6 +110,7 @@ export const scheduledItemCreateSchema = z.object({
 });
 
 export const scheduledItemUpdateSchema = scheduledItemCreateSchema.partial().extend({
+  recurrence: z.enum(["monthly", "yearly"]).nullable().optional(), // null = make one-off
   status: z.enum(["pending", "logged", "skipped"]).optional(),
 });
 

@@ -213,16 +213,18 @@ function CampaignEditForm({
   onDone: () => void;
 }) {
   const update = useUpdateCampaign();
-  const isManual = !g.linkedAccountId;
+  const { data: accounts } = useAccounts();
   const [name, setName] = useState(g.name);
   const [target, setTarget] = useState(
     (g.targetDefaultMinor / 10 ** exponent).toFixed(exponent),
   );
   const [targetDate, setTargetDate] = useState(g.targetDate ?? "");
+  const [linkedAccountId, setLinkedAccountId] = useState(g.linkedAccountId ?? "");
   const [progress, setProgress] = useState(
     ((g.manualProgressMinor ?? 0) / 10 ** exponent).toFixed(exponent),
   );
   const [err, setErr] = useState<string | null>(null);
+  const isManual = !linkedAccountId;
 
   async function submit() {
     setErr(null);
@@ -232,6 +234,7 @@ function CampaignEditForm({
         name,
         target,
         targetDate: targetDate || null,
+        linkedAccountId: linkedAccountId || null,
         manualProgress: isManual ? progress : undefined,
       });
       onDone();
@@ -275,6 +278,18 @@ function CampaignEditForm({
           </label>
         )}
       </div>
+      <select
+        value={linkedAccountId}
+        onChange={(e) => setLinkedAccountId(e.target.value)}
+        className="rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-xs outline-none"
+      >
+        <option value="">Track progress manually</option>
+        {(accounts ?? []).map((a) => (
+          <option key={a.id} value={a.id}>
+            Progress = balance of: {a.name}
+          </option>
+        ))}
+      </select>
       {err && <p className="num text-[10.5px] text-neg">{err}</p>}
       <div className="flex gap-2">
         <button

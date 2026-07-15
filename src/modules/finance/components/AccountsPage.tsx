@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
 import { fmt } from "@/lib/format-money";
@@ -50,7 +51,52 @@ export function AccountsPage() {
           <AccountRow key={a.id} account={a} defaultCurrency={currencyData?.defaultCurrency ?? "KWD"} />
         ))}
       </div>
+
+      <ArchivedAccounts />
     </div>
+  );
+}
+
+function ArchivedAccounts() {
+  const { data: archived } = useQuery({
+    queryKey: ["accounts", "archived"],
+    queryFn: async (): Promise<AccountDto[]> => {
+      const res = await fetch("/api/finance/accounts?archived=1");
+      if (!res.ok) throw new Error("Failed to load archived accounts");
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+  const update = useUpdateAccount();
+  if (!archived || archived.length === 0) return null;
+
+  return (
+    <Card title="ARCHIVED">
+      <div className="flex flex-col gap-0.5">
+        {archived.map((a) => (
+          <div
+            key={a.id}
+            className="flex items-center gap-2.5 rounded-[9px] px-1.5 py-2 hover:bg-card-hover"
+          >
+            <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-inset text-ghost">
+              <Icon name={a.icon} size={13} />
+            </span>
+            <span className="flex-1 truncate text-[12.5px] text-faint">
+              {a.name}
+              <span className="num ml-2 text-[9.5px]">
+                {a.subtype.replace("_", " ")} · {a.currencyCode}
+              </span>
+            </span>
+            <button
+              onClick={() => update.mutate({ id: a.id, archived: false })}
+              className="p-1.5 text-[10px] font-bold tracking-[1px] text-faint hover:text-pos"
+            >
+              RESTORE
+            </button>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -65,6 +111,7 @@ function AccountRow({
   const del = useDeleteAccount();
   const reconcile = useReconcileAccount();
   const { privacy } = usePrivacy();
+  const [editing, setEditing] = useState(false);
   const [editingQty, setEditingQty] = useState(false);
   const [qty, setQty] = useState(a.quantity ?? "0");
   const [reconciling, setReconciling] = useState(false);
@@ -78,12 +125,24 @@ function AccountRow({
           <Icon name={a.icon} size={15} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-ink-2">{a.name}</p>
+          <p className="truncate text-[13px] font-semibold text-ink-2">
+            {a.name}
+            {a.mask && <span className="num ml-1.5 text-[10px] text-faint">{a.mask}</span>}
+          </p>
           <p className="num mt-0.5 text-[10.5px] text-faint">
             {a.subtype.replace("_", " ")} · {a.currencyCode}
             {a.kind === "priced" && a.assetSymbol && ` · ${a.assetSymbol}`}
           </p>
         </div>
+        <button
+          onClick={() => setEditing((v) => !v)}
+          className="rounded p-1 text-ghost hover:text-muted"
+          aria-label="Edit account"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16.8 3.7a2.2 2.2 0 0 1 3.1 3.1L7.5 19.2 3 20.5l1.3-4.5z" />
+          </svg>
+        </button>
         <button
           onClick={() => {
             if (confirm(`Delete/archive "${a.name}"?`)) del.mutate(a.id);
@@ -96,6 +155,8 @@ function AccountRow({
           </svg>
         </button>
       </div>
+
+      {editing && <AccountEditForm account={a} onDone={() => setEditing(false)} />}
 
       <p
         className={cn(
@@ -206,6 +267,96 @@ function AccountRow({
         Count in net worth
       </label>
     </Card>
+  );
+}
+
+function AccountEditForm({ account: a, onDone }: { account: AccountDto; onDone: () => void }) {
+  const update = useUpdateAccount();
+  const isPriced = a.kind === "priced";
+  const [name, setName] = useState(a.name);
+  const [mask, setMask] = useState(a.mask?.replace("•••• ", "") ?? "");
+  const [assetSymbol, setAssetSymbol] = useState(a.assetSymbol ?? "");
+  const [manualPrice, setManualPrice] = useState(
+    a.manualPriceMinor !== null
+      ? (a.manualPriceMinor / 10 ** a.currency.exponent).toFixed(a.currency.exponent)
+      : "",
+  );
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save() {
+    setErr(null);
+    try {
+      await update.mutateAsync({
+        id: a.id,
+        name,
+        mask: mask ? `•••• ${mask}` : undefined,
+        assetSymbol: isPriced && assetSymbol ? assetSymbol : undefined,
+        manualPrice: isPriced && manualPrice ? manualPrice : undefined,
+      });
+      onDone();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border-3 bg-card-hover p-2.5">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-xs text-ink outline-none"
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-[10px] text-faint">
+          Last 4
+          <input
+            value={mask}
+            onChange={(e) => setMask(e.target.value)}
+            maxLength={4}
+            placeholder="4471"
+            className="num w-16 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs text-ink outline-none"
+          />
+        </label>
+        {isPriced && a.subtype !== "crypto" && (
+          <label className="flex items-center gap-1.5 text-[10px] text-faint">
+            Ticker
+            <input
+              value={assetSymbol}
+              onChange={(e) => setAssetSymbol(e.target.value)}
+              className="w-20 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs text-ink outline-none"
+            />
+          </label>
+        )}
+        {isPriced && (
+          <label className="flex items-center gap-1.5 text-[10px] text-faint">
+            Manual price ({a.currencyCode})
+            <input
+              value={manualPrice}
+              onChange={(e) => setManualPrice(e.target.value)}
+              inputMode="decimal"
+              placeholder="—"
+              className="num w-24 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-right text-xs text-ink outline-none"
+            />
+          </label>
+        )}
+      </div>
+      {isPriced && a.subtype === "crypto" && (
+        <CryptoSymbolSearch value={assetSymbol} onSelect={setAssetSymbol} />
+      )}
+      {err && <p className="num text-[10.5px] text-neg">{err}</p>}
+      <div className="flex gap-2">
+        <button
+          onClick={save}
+          disabled={update.isPending || !name}
+          className="rounded-lg bg-ink px-3 py-1.5 text-[10.5px] font-bold tracking-wide text-surface disabled:opacity-60"
+        >
+          SAVE
+        </button>
+        <button onClick={onDone} className="px-1.5 text-[10.5px] text-muted hover:text-ink">
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 

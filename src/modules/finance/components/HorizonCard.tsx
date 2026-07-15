@@ -11,6 +11,7 @@ import {
   useDeleteHorizonItem,
   useHorizon,
   useLogHorizonItem,
+  useUpdateHorizonItem,
   type HorizonItemDto,
 } from "../api/hooks-m3";
 
@@ -51,9 +52,14 @@ function HorizonRow({ item: h }: { item: HorizonItemDto }) {
   const log = useLogHorizonItem();
   const del = useDeleteHorizonItem();
   const [err, setErr] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const exponent =
     currencyData?.currencies.find((c) => c.code === h.currencyCode)?.exponent ?? 2;
   const out = h.direction === "outflow";
+
+  if (editing) {
+    return <HorizonForm item={h} onDone={() => setEditing(false)} />;
+  }
 
   return (
     <div className="group rounded-[9px] px-1.5 py-2 hover:bg-card-hover">
@@ -110,6 +116,12 @@ function HorizonRow({ item: h }: { item: HorizonItemDto }) {
             LOG NOW
           </button>
           <button
+            onClick={() => setEditing(true)}
+            className="text-[9px] font-bold tracking-[1px] text-faint hover:text-ink"
+          >
+            EDIT
+          </button>
+          <button
             onClick={() => {
               if (confirm(`Delete "${h.name}"?`)) del.mutate(h.id);
             }}
@@ -124,20 +136,26 @@ function HorizonRow({ item: h }: { item: HorizonItemDto }) {
   );
 }
 
-function HorizonForm({ onDone }: { onDone: () => void }) {
+function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => void }) {
   const create = useCreateHorizonItem();
+  const update = useUpdateHorizonItem();
   const { data: accounts } = useAccounts();
   const { data: categories } = useCategories();
   const { data: currencyData } = useCurrencies();
-  const [name, setName] = useState("");
-  const [direction, setDirection] = useState<"outflow" | "inflow">("outflow");
-  const [amount, setAmount] = useState("");
-  const [currencyCode, setCurrencyCode] = useState("KWD");
-  const [dueDate, setDueDate] = useState("");
-  const [recurrence, setRecurrence] = useState("");
-  const [accountId, setAccountId] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const itemExponent =
+    currencyData?.currencies.find((c) => c.code === item?.currencyCode)?.exponent ?? 3;
+  const [name, setName] = useState(item?.name ?? "");
+  const [direction, setDirection] = useState<"outflow" | "inflow">(item?.direction ?? "outflow");
+  const [amount, setAmount] = useState(
+    item ? (item.amountMinor / 10 ** itemExponent).toFixed(itemExponent) : "",
+  );
+  const [currencyCode, setCurrencyCode] = useState(item?.currencyCode ?? "KWD");
+  const [dueDate, setDueDate] = useState(item?.dueDate ?? "");
+  const [recurrence, setRecurrence] = useState(item?.recurrence ?? "");
+  const [accountId, setAccountId] = useState(item?.accountId ?? "");
+  const [categoryId, setCategoryId] = useState(item?.categoryId ?? "");
   const [err, setErr] = useState<string | null>(null);
+  const pending = create.isPending || update.isPending;
 
   const cats = (categories ?? []).filter(
     (c) => c.type === (direction === "outflow" ? "expense" : "income"),
@@ -146,17 +164,31 @@ function HorizonForm({ onDone }: { onDone: () => void }) {
   async function submit() {
     setErr(null);
     try {
-      await create.mutateAsync({
-        name,
-        direction,
-        amount,
-        currencyCode,
-        dueDate,
-        recurrence: (recurrence || undefined) as "monthly" | "yearly" | undefined,
-        accountId: accountId || undefined,
-        categoryId: categoryId || undefined,
-        alertDaysBefore: 7,
-      });
+      if (item) {
+        await update.mutateAsync({
+          id: item.id,
+          name,
+          direction,
+          amount,
+          currencyCode,
+          dueDate,
+          recurrence: (recurrence || null) as "monthly" | "yearly" | null,
+          accountId: accountId || undefined,
+          categoryId: categoryId || undefined,
+        });
+      } else {
+        await create.mutateAsync({
+          name,
+          direction,
+          amount,
+          currencyCode,
+          dueDate,
+          recurrence: (recurrence || undefined) as "monthly" | "yearly" | undefined,
+          accountId: accountId || undefined,
+          categoryId: categoryId || undefined,
+          alertDaysBefore: 7,
+        });
+      }
       onDone();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed");
@@ -250,10 +282,10 @@ function HorizonForm({ onDone }: { onDone: () => void }) {
       <div className="flex gap-2">
         <button
           onClick={submit}
-          disabled={create.isPending || !name || !amount || !dueDate}
+          disabled={pending || !name || !amount || !dueDate}
           className="rounded-lg bg-ink px-3.5 py-1.5 text-[11px] font-bold tracking-wide text-surface disabled:opacity-60"
         >
-          ADD
+          {item ? "SAVE" : "ADD"}
         </button>
         <button onClick={onDone} className="px-2 text-[11px] text-muted hover:text-ink">
           Cancel

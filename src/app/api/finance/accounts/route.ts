@@ -5,14 +5,16 @@ import { parseAmount } from "@/lib/money";
 import { accountCreateSchema } from "@/lib/schemas/finance";
 import { computeBalances } from "@/modules/finance/server/balances";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // ?archived=1 lists archived accounts (no balances — for the restore UI)
+  const archived = req.nextUrl.searchParams.get("archived") === "1";
   const [accounts, balances] = await Promise.all([
     prisma.account.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: archived ? { not: null } : null },
       include: { currency: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
-    computeBalances(),
+    archived ? [] : computeBalances(),
   ]);
   const balanceMap = new Map(balances.map((b) => [b.accountId, b]));
   const result = accounts.map((a) => ({
