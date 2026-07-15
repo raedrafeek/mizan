@@ -61,8 +61,8 @@ export function AccountsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center">
-        <h1 className="text-sm font-semibold tracking-[2px] text-muted">ACCOUNTS</h1>
+      <div className="flex items-center px-1">
+        <h1 className="text-[13px] font-bold tracking-[2px] text-muted">ACCOUNTS</h1>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="ml-auto rounded-[11px] bg-ink px-4 py-2 text-[12px] font-bold tracking-wide text-surface hover:bg-white"

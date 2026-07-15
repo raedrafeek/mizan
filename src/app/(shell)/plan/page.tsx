@@ -14,8 +14,8 @@ export default function PlanPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-sm font-semibold tracking-[2px] text-muted">PLAN</h1>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-1">
+        <h1 className="text-[13px] font-bold tracking-[2px] text-muted">PLAN</h1>
         <button
           onClick={() => setWizard(true)}
           className="rounded-full border border-border-4 px-3 py-1 text-[10px] font-bold tracking-[1px] text-muted hover:text-ink"

@@ -111,8 +111,8 @@ function CampaignRow({ campaign: g }: { campaign: CampaignDto }) {
       >
         <GoalRing campaign={g} paused={paused} />
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="truncate text-[14px] font-semibold text-ink-2">{g.name}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="min-w-0 truncate text-[14px] font-semibold text-ink-2">{g.name}</span>
             <span className={cn("flex-none rounded-[5px] px-1.5 py-0.5 text-[10px] font-bold tracking-[0.5px]", chip.cls)}>
               {chip.label}
             </span>

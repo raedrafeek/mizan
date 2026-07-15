@@ -264,7 +264,7 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
           className="flex-1 rounded-lg border border-border-3 bg-surface px-2.5 py-1.5 text-xs outline-none"
         />
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <input
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
@@ -301,11 +301,11 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
           <option value="yearly">Yearly</option>
         </select>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <select
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
-          className="flex-1 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs outline-none"
+          className="min-w-32 flex-1 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs outline-none"
         >
           <option value="">Account for &quot;log now&quot; (optional)</option>
           {(accounts ?? [])
