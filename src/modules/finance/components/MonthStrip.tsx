@@ -28,7 +28,8 @@ export function MonthStrip() {
   );
 
   return (
-    <div className="flex divide-x divide-border border-y border-border py-2.5">
+    // full-bleed band on phones (matches the concept); content-width on desktop
+    <div className="-mx-4 flex divide-x divide-border border-y border-border py-2.5 md:mx-0">
       {cell(
         "IN",
         <span className="text-pos">
