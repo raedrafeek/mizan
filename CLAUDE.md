@@ -92,6 +92,9 @@ The original approved plan: `C:\Users\RaedRafeek\.claude\plans\hi-i-was-crispy-m
 | 81be2c6 | **Campaign contributions**: ADD (signed increment, "-50" removes, clamped ≥0) + EDIT (name/target/date/saved-so-far) on campaign rows — manual campaigns previously had no way to update progress |
 | 1e0ac4d | **Mobile quick-log fix**: flex-wrap into 3 rows on phones (controls / category rail / full-width COMMIT) — rail was collapsing to 0 width, COMMIT protruded |
 | 10a7f9b | **Edit/restore completeness audit**: horizon EDIT (+ recurrence clearable to one-off), account EDIT (name/mask/symbol/manual price), unarchive UI for categories+accounts (`?archived=1` + RESTORE), campaign tracking-mode switch (manual ↔ linked) |
+| f133bb0 | **Path B phase 1 — mobile-first shell**: bottom tab bar + center log FAB on phones, left rail on desktop; 4 destinations Home `/`, `/activity`, `/plan`, `/accounts` (+`/categories`; old `/finance/*` redirect); registry `navItems`→`destinations`; modules now register in the CLIENT bundle too (per-bundle registry was a latent bug); vocabulary: Campaigns→Goals, Horizon→Upcoming, Net position→Net worth, reconcile→fix balance |
+| bd25a53 | **Path B phase 2 — numpad log** (`/log`, FAB target): amount-first numpad, SPENT/RECEIVED/MOVED modes, usage-ordered category grid (always one selected), account picker sheet, sticky backdate chip, received-amount field on cross-currency MOVED, **UNDO on the success toast** (toast API gained actions), keyboard support; create/delete now invalidates cashflow+networth |
+| 1fc4b59 | **Path B phase 3 — verdict Home**: SafeToSpendHero (budgets−spent, per-day for days left, pace tick, red-but-counting when over, tap→calculation breakdown sheet, honest no-budget fallback), InsightCard (max ONE priority-ranked dismissible alert), UpNextCard (nearest horizon items + one-tap LOG IT); QuickLog inline bar is desktop-only; net worth hero lives on `/accounts` |
 
 Everything from the full project review (2026-07-13) is complete. The user is
 actively logging real data (real accounts + transactions exist in the DB —
@@ -148,6 +151,20 @@ Deploy = `git push` (Vercel auto-builds; lock screen + crons active there).
 
 ## Backlog / next steps (user decides when)
 
+0. **Path B remaining phases** (mobile-first consumer redesign; concept artifact
+   at https://claude.ai/code/artifact/15ca7a2a-3210-493e-8c4d-6d5317ab5850,
+   full design rationale in the 2026-07-15 session):
+   **Phase 4 — detail sheets**: tap a transaction row → bottom-sheet edit
+   (replace inline forms on mobile); tap an account → account screen (its
+   activity + fix balance/edit/archive); budget setup wizard proposing
+   amounts from observed spending; goal −/+ toggle in quick-add.
+   **Phase 5 — onboarding + settings**: first-run flow (currency → account
+   templates → first log), empty states for all tabs, settings screen
+   (home currency, app lock, notifications, export). Later: offline outbox
+   (IndexedDB + sync), Web Push (bill due + smart evening log prompt),
+   recurring-transaction detection → suggest Upcoming items.
+   **Life OS decision made**: Home is the cross-module screen; modules
+   contribute destinations (tab sets come when a 2nd module exists).
 1. **Tasks module** — first real test of the Life OS shell contract
    (new folder in `src/modules/`, register nav + dashboard cards + alert kinds;
    zero shell edits expected). Mockup shows the intended Tasks card.
