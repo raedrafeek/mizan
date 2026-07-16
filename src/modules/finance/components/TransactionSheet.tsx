@@ -19,6 +19,7 @@ const TYPE_LABEL: Record<TransactionDto["type"], string> = {
   transfer_out: "Moved out",
   transfer_in: "Moved in",
   adjustment: "Balance correction",
+  refund: "Refund (nets out of the category's spending)",
 };
 
 /**

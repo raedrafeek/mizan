@@ -63,6 +63,7 @@ export function NumpadLog() {
   const { privacy } = usePrivacy();
 
   const [mode, setMode] = useState<Mode>("expense");
+  const [isRefund, setIsRefund] = useState(false); // RECEIVED-mode: money back against spending
   const [amountStr, setAmountStr] = useState("");
   const [accountId, setAccountId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -73,6 +74,9 @@ export function NumpadLog() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [counterId, setCounterId] = useState<string | null>(null);
   const [counterAmount, setCounterAmount] = useState("");
+  // split: one payment fanned into parts (other categories / owed-to-you accounts)
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [splits, setSplits] = useState<{ target: string; amountStr: string }[]>([]);
   const dateRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,20 +105,22 @@ export function NumpadLog() {
   );
   const counter = counterAccounts.find((a) => a.id === counterId) ?? null;
 
-  // usage-ordered category rail; one is ALWAYS selected (no uncategorized logs)
+  // usage-ordered category rail; one is ALWAYS selected (no uncategorized logs).
+  // refunds pick from EXPENSE categories — the money goes back where it came from
+  const wantIncomeCats = mode === "income" && !isRefund;
   const rail = useMemo(() => {
     const usage = typeof window === "undefined" ? {} : readUsage();
     return (categories ?? [])
-      .filter((c) => c.type === (mode === "income" ? "income" : "expense"))
+      .filter((c) => c.type === (wantIncomeCats ? "income" : "expense"))
       .sort((a, b) => (usage[b.id] ?? 0) - (usage[a.id] ?? 0) || a.sortOrder - b.sortOrder);
-  }, [categories, mode]);
+  }, [categories, wantIncomeCats]);
 
   useEffect(() => {
     if (mode === "transfer" || rail.length === 0) return;
     if (categoryId && rail.some((c) => c.id === categoryId)) return;
-    const saved = localStorage.getItem(`${LAST_CAT_KEY}.${mode}`);
+    const saved = localStorage.getItem(`${LAST_CAT_KEY}.${wantIncomeCats ? "income" : "expense"}`);
     setCategoryId((rail.find((c) => c.id === saved) ?? rail[0]).id);
-  }, [rail, mode, categoryId]);
+  }, [rail, mode, categoryId, wantIncomeCats]);
 
   // numpad input
   function press(key: string) {
@@ -187,10 +193,11 @@ export function NumpadLog() {
     if (!canCommit || !account) return;
     const payload = {
       accountId: account.id,
-      type: (mode === "transfer" ? "transfer_out" : mode) as
-        | "expense"
-        | "income"
-        | "transfer_out",
+      type: (mode === "transfer"
+        ? "transfer_out"
+        : mode === "income" && isRefund
+          ? "refund"
+          : mode) as "expense" | "income" | "transfer_out" | "refund",
       amount: amountStr,
       categoryId: mode === "transfer" ? undefined : categoryId!,
       counterAccountId: mode === "transfer" ? counter!.id : undefined,
@@ -202,7 +209,9 @@ export function NumpadLog() {
     const label =
       mode === "transfer"
         ? `Moved ${amountStr} ${account.currencyCode} → ${counter!.name}`
-        : `Logged ${mode === "expense" ? "−" : "+"}${amountStr} ${account.currencyCode}`;
+        : mode === "income" && isRefund
+          ? `Refund +${amountStr} ${account.currencyCode}`
+          : `Logged ${mode === "expense" ? "−" : "+"}${amountStr} ${account.currencyCode}`;
 
     // optimistic: clear instantly (date + category + account stay for batch logging)
     setAmountStr("");
@@ -211,7 +220,7 @@ export function NumpadLog() {
     setNoteOpen(false);
     if (mode !== "transfer" && categoryId) {
       bumpUsage(categoryId);
-      localStorage.setItem(`${LAST_CAT_KEY}.${mode}`, categoryId);
+      if (!isRefund) localStorage.setItem(`${LAST_CAT_KEY}.${mode}`, categoryId);
     }
     if (navigator.vibrate) navigator.vibrate(12);
 
@@ -225,6 +234,69 @@ export function NumpadLog() {
       setAmountStr(payload.amount);
       toast.error(
         `Not logged: ${e instanceof Error ? e.message : "request failed"} — your entry was restored`,
+      );
+    }
+  }
+
+  // ---- split helpers ----
+  const receivableAccounts = transactional.filter(
+    (a) => a.id !== account?.id && (a.subtype === "other" || a.subtype === "loan"),
+  );
+  const toMinor = (s: string) => {
+    try {
+      return parseAmount(s, exponent);
+    } catch {
+      return NaN;
+    }
+  };
+  const toMajor = (m: number) => (m / 10 ** exponent).toFixed(exponent);
+  const totalMinor = amountValid ? toMinor(amountStr) : 0;
+  const partsMinor = splits.map((s) => (s.amountStr ? toMinor(s.amountStr) : 0));
+  const partsValid = splits.every(
+    (s, i) => s.target && !isNaN(partsMinor[i]) && partsMinor[i] > 0,
+  );
+  const partsSum = partsMinor.reduce((a, b) => (isNaN(b) ? a : a + b), 0);
+  const remainderMinor = totalMinor - partsSum;
+  const mainCat = rail.find((c) => c.id === categoryId);
+
+  async function commitSplit() {
+    if (!account || !partsValid || remainderMinor < 0) return;
+    const entries: { type: "expense" | "transfer_out"; amount: string; categoryId?: string; counterAccountId?: string }[] =
+      splits.map((s, i) => {
+        const [kind, id] = s.target.split(":");
+        return kind === "cat"
+          ? { type: "expense" as const, amount: toMajor(partsMinor[i]), categoryId: id }
+          : { type: "transfer_out" as const, amount: toMajor(partsMinor[i]), counterAccountId: id };
+      });
+    if (remainderMinor > 0 && categoryId) {
+      entries.unshift({ type: "expense", amount: toMajor(remainderMinor), categoryId });
+    }
+    setSplitOpen(false);
+    setAmountStr("");
+    setNote("");
+    setNoteOpen(false);
+    if (navigator.vibrate) navigator.vibrate(12);
+    try {
+      const ids: string[] = [];
+      for (const e of entries) {
+        const created = (await create.mutateAsync({
+          accountId: account.id,
+          type: e.type,
+          amount: e.amount,
+          categoryId: e.categoryId,
+          counterAccountId: e.counterAccountId,
+          date,
+          note: note || undefined,
+        })) as { id: string };
+        ids.push(created.id);
+      }
+      toast.success(`Split ${amountStr || toMajor(totalMinor)} into ${entries.length} parts`, {
+        label: "UNDO",
+        onClick: () => ids.forEach((id) => del.mutate(id)),
+      });
+    } catch (e) {
+      toast.error(
+        `Split failed midway: ${e instanceof Error ? e.message : "request failed"} — check Activity`,
       );
     }
   }
@@ -277,6 +349,7 @@ export function NumpadLog() {
             key={m}
             onClick={() => {
               setMode(m);
+              setIsRefund(false);
               setCategoryId(null);
               setCounterId(null);
             }}
@@ -360,6 +433,37 @@ export function NumpadLog() {
             </div>
           )}
         </div>
+        {mode === "expense" && (
+          <button
+            onClick={() => {
+              if (!amountValid) return;
+              setSplits([{ target: "", amountStr: "" }]);
+              setSplitOpen(true);
+            }}
+            disabled={!amountValid}
+            className="rounded-full border border-border-3 bg-surface px-3 py-1.5 text-[11px] font-semibold text-muted disabled:opacity-40"
+            title="One payment, several parts — other categories or money owed back to you"
+          >
+            ◫ split
+          </button>
+        )}
+        {mode === "income" && (
+          <button
+            onClick={() => {
+              setIsRefund((v) => !v);
+              setCategoryId(null);
+            }}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-[11px] font-semibold",
+              isRefund
+                ? "border-pos/50 bg-pos/10 text-pos"
+                : "border-border-3 bg-surface text-muted",
+            )}
+            title="Money back against something you spent — nets out of that category instead of counting as income"
+          >
+            ↩ refund
+          </button>
+        )}
         {noteOpen ? (
           <input
             autoFocus
@@ -470,6 +574,114 @@ export function NumpadLog() {
       >
         LOG
       </button>
+
+      {/* split sheet */}
+      {splitOpen && (
+        <div
+          className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSplitOpen(false);
+          }}
+        >
+          <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl">
+            <p className="text-[10.5px] font-bold tracking-[2px] text-faint">
+              SPLIT {toMajor(totalMinor)} {account.currencyCode}
+            </p>
+            <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+              Break this payment into parts — other categories, or money someone owes you
+              back.
+            </p>
+
+            <div className="mt-3 flex flex-col gap-2">
+              {splits.map((s, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <select
+                    value={s.target}
+                    onChange={(e) =>
+                      setSplits((list) =>
+                        list.map((x, j) => (j === i ? { ...x, target: e.target.value } : x)),
+                      )
+                    }
+                    className="min-w-0 flex-1 rounded-xl border border-border-3 bg-surface px-2.5 py-2.5 text-xs text-ink outline-none"
+                  >
+                    <option value="">Goes to…</option>
+                    <optgroup label="Category">
+                      {rail.map((c) => (
+                        <option key={c.id} value={`cat:${c.id}`}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    {receivableAccounts.length > 0 && (
+                      <optgroup label="Owed back to you">
+                        {receivableAccounts.map((a) => (
+                          <option key={a.id} value={`acct:${a.id}`}>
+                            → {a.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <input
+                    value={s.amountStr}
+                    onChange={(e) =>
+                      setSplits((list) =>
+                        list.map((x, j) => (j === i ? { ...x, amountStr: e.target.value } : x)),
+                      )
+                    }
+                    inputMode="decimal"
+                    placeholder="0"
+                    className="num w-24 rounded-xl border border-border-3 bg-surface px-2.5 py-2.5 text-right text-xs text-ink outline-none"
+                  />
+                  <button
+                    onClick={() => setSplits((list) => list.filter((_, j) => j !== i))}
+                    className="px-1 text-[16px] leading-none text-faint hover:text-neg"
+                    aria-label="Remove part"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setSplits((list) => [...list, { target: "", amountStr: "" }])}
+              className="mt-2 text-[11.5px] font-semibold text-muted hover:text-ink"
+            >
+              ＋ add another part
+            </button>
+
+            <p className="num mt-3 text-[11.5px] text-muted">
+              {remainderMinor > 0 ? (
+                <>
+                  Remainder <b className="text-ink">{toMajor(remainderMinor)}</b> stays in{" "}
+                  <b className="text-ink">{mainCat?.name ?? "the selected category"}</b>
+                </>
+              ) : remainderMinor === 0 ? (
+                "Fully split — no remainder"
+              ) : (
+                <span className="text-neg">Parts exceed the total by {toMajor(-remainderMinor)}</span>
+              )}
+            </p>
+
+            <div className="mt-4 flex items-center gap-2.5">
+              <button
+                onClick={commitSplit}
+                disabled={!partsValid || remainderMinor < 0 || splits.length === 0 || create.isPending}
+                className="flex-1 rounded-xl bg-ink py-3 text-[11.5px] font-bold tracking-[1.5px] text-surface disabled:opacity-40"
+              >
+                LOG {splits.length + (remainderMinor > 0 ? 1 : 0)} PARTS
+              </button>
+              <button
+                onClick={() => setSplitOpen(false)}
+                className="px-3 text-[11.5px] text-muted hover:text-ink"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* account picker */}
       {pickerOpen && (

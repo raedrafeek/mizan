@@ -40,8 +40,10 @@ export async function POST(req: NextRequest) {
       dueDate: input.dueDate,
       recurrence: input.recurrence,
       accountId: input.accountId,
+      counterAccountId: input.counterAccountId,
       categoryId: input.categoryId,
       alertDaysBefore: input.alertDaysBefore,
+      autoPost: input.autoPost,
     },
   });
   return NextResponse.json(jsonSafe(item), { status: 201 });

@@ -89,6 +89,7 @@ enum TransactionType {
   transfer_out
   transfer_in
   adjustment
+  refund // money back against spending: positive inflow that NETS OUT of its expense category
 }
 
 model Transaction {
@@ -182,6 +183,7 @@ model Campaign {
 enum ScheduledDirection {
   inflow
   outflow
+  transfer // e.g. card bill, loan repayment, monthly savings — cash-flow-neutral
 }
 
 enum ScheduledStatus {
@@ -204,8 +206,12 @@ model ScheduledItem {
   dueDate             String // "YYYY-MM-DD"
   recurrence          Recurrence? // null = one-off
   accountId           String?
+  /** transfer items: the destination account */
+  counterAccountId    String?
   categoryId          String?
   alertDaysBefore     Int                @default(7)
+  /** post the transaction automatically on the due date (daily cron) */
+  autoPost            Boolean            @default(false)
   status              ScheduledStatus    @default(pending)
   loggedTransactionId String?
 

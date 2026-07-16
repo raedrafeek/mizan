@@ -88,10 +88,16 @@ function HorizonRow({ item: h }: { item: HorizonItemDto }) {
                 ? "due today"
                 : `in ${h.daysUntil} days`}
             {h.recurrence ? ` · ${h.recurrence}` : ""}
+            {h.autoPost ? " · auto" : ""}
           </span>
         </span>
-        <span className={cn("num flex-none text-[14px]", out ? "text-ink" : "text-pos")}>
-          {out ? "−" : "+"}
+        <span
+          className={cn(
+            "num flex-none text-[14px]",
+            h.direction === "inflow" ? "text-pos" : "text-ink",
+          )}
+        >
+          {h.direction === "transfer" ? "⇄ " : out ? "−" : "+"}
           {masked(privacy, formatMinor(h.amountMinor, exponent))} {h.currencyCode}
         </span>
       </button>
@@ -131,12 +137,13 @@ function UpcomingSheet({ item: h, onClose }: { item: HorizonItemDto; onClose: ()
           </button>
         </div>
         <p className="num text-[12px] text-muted">
-          <span className={cn(out ? "text-ink" : "text-pos")}>
-            {out ? "−" : "+"}
+          <span className={cn(h.direction === "inflow" ? "text-pos" : "text-ink")}>
+            {h.direction === "transfer" ? "⇄ " : out ? "−" : "+"}
             {masked(privacy, formatMinor(h.amountMinor, exponent))} {h.currencyCode}
           </span>{" "}
           · due {h.dueDate}
           {h.recurrence ? ` · repeats ${h.recurrence}` : ""}
+          {h.autoPost ? " · posts automatically" : ""}
           <span className={cn(h.warn ? "text-warn" : "")}>
             {" "}
             ({h.daysUntil < 0 ? `${-h.daysUntil}d overdue` : `in ${h.daysUntil} days`})
@@ -196,7 +203,9 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
   const itemExponent =
     currencyData?.currencies.find((c) => c.code === item?.currencyCode)?.exponent ?? 3;
   const [name, setName] = useState(item?.name ?? "");
-  const [direction, setDirection] = useState<"outflow" | "inflow">(item?.direction ?? "outflow");
+  const [direction, setDirection] = useState<"outflow" | "inflow" | "transfer">(
+    item?.direction ?? "outflow",
+  );
   const [amount, setAmount] = useState(
     item ? (item.amountMinor / 10 ** itemExponent).toFixed(itemExponent) : "",
   );
@@ -204,12 +213,15 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
   const [dueDate, setDueDate] = useState(item?.dueDate ?? "");
   const [recurrence, setRecurrence] = useState(item?.recurrence ?? "");
   const [accountId, setAccountId] = useState(item?.accountId ?? "");
+  const [counterAccountId, setCounterAccountId] = useState(item?.counterAccountId ?? "");
   const [categoryId, setCategoryId] = useState(item?.categoryId ?? "");
+  const [autoPost, setAutoPost] = useState(item?.autoPost ?? false);
   const [err, setErr] = useState<string | null>(null);
   const pending = create.isPending || update.isPending;
+  const isTransfer = direction === "transfer";
 
   const cats = (categories ?? []).filter(
-    (c) => c.type === (direction === "outflow" ? "expense" : "income"),
+    (c) => c.type === (direction === "inflow" ? "income" : "expense"),
   );
 
   async function submit() {
@@ -225,7 +237,9 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
           dueDate,
           recurrence: (recurrence || null) as "monthly" | "yearly" | null,
           accountId: accountId || undefined,
-          categoryId: categoryId || undefined,
+          counterAccountId: isTransfer ? counterAccountId || undefined : null,
+          categoryId: isTransfer ? undefined : categoryId || undefined,
+          autoPost,
         });
       } else {
         await create.mutateAsync({
@@ -236,8 +250,10 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
           dueDate,
           recurrence: (recurrence || undefined) as "monthly" | "yearly" | undefined,
           accountId: accountId || undefined,
-          categoryId: categoryId || undefined,
+          counterAccountId: isTransfer ? counterAccountId || undefined : undefined,
+          categoryId: isTransfer ? undefined : categoryId || undefined,
           alertDaysBefore: 7,
+          autoPost,
         });
       }
       onDone();
@@ -251,11 +267,12 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
       <div className="flex gap-2">
         <select
           value={direction}
-          onChange={(e) => setDirection(e.target.value as "outflow" | "inflow")}
+          onChange={(e) => setDirection(e.target.value as "outflow" | "inflow" | "transfer")}
           className="rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs outline-none"
         >
           <option value="outflow">− Payment</option>
           <option value="inflow">+ Income</option>
+          <option value="transfer">⇄ Transfer (card bill, savings…)</option>
         </select>
         <input
           value={name}
@@ -307,7 +324,7 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
           onChange={(e) => setAccountId(e.target.value)}
           className="min-w-32 flex-1 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs outline-none"
         >
-          <option value="">Account for &quot;log now&quot; (optional)</option>
+          <option value="">{isTransfer ? "From account" : "Account for logging (optional)"}</option>
           {(accounts ?? [])
             .filter((a) => a.kind === "transactional")
             .map((a) => (
@@ -316,19 +333,45 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
               </option>
             ))}
         </select>
-        <select
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          className="flex-1 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs outline-none"
-        >
-          <option value="">Category (optional)</option>
-          {cats.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        {isTransfer ? (
+          <select
+            value={counterAccountId}
+            onChange={(e) => setCounterAccountId(e.target.value)}
+            className="min-w-32 flex-1 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs outline-none"
+          >
+            <option value="">→ To account</option>
+            {(accounts ?? [])
+              .filter((a) => a.kind === "transactional" && a.id !== accountId)
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  → {a.name}
+                </option>
+              ))}
+          </select>
+        ) : (
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="flex-1 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs outline-none"
+          >
+            <option value="">Category (optional)</option>
+            {cats.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
+      <label className="flex cursor-pointer items-center gap-2 text-[11px] text-muted">
+        <input
+          type="checkbox"
+          checked={autoPost}
+          onChange={(e) => setAutoPost(e.target.checked)}
+          className="accent-[#35D07F]"
+        />
+        Post automatically on the due date
+      </label>
       {err && <p className="num text-[10.5px] text-neg">{err}</p>}
       <div className="flex gap-2">
         <button

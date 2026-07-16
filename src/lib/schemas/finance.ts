@@ -17,6 +17,7 @@ export const transactionTypes = [
   "transfer_out",
   "transfer_in",
   "adjustment",
+  "refund", // inflow that nets out of its expense category, not into income
 ] as const;
 
 const decimalString = z.string().regex(/^\d+(\.\d+)?$/, "Must be a positive decimal number");
@@ -99,18 +100,21 @@ export const campaignUpdateSchema = z.object({
 
 export const scheduledItemCreateSchema = z.object({
   name: z.string().min(1).max(120),
-  direction: z.enum(["inflow", "outflow"]),
+  direction: z.enum(["inflow", "outflow", "transfer"]),
   amount: decimalString, // major units in currencyCode
   currencyCode: z.string().min(3).max(4),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   recurrence: z.enum(["monthly", "yearly"]).optional(),
   accountId: z.string().optional(),
+  counterAccountId: z.string().optional(), // transfer items: destination
   categoryId: z.string().optional(),
   alertDaysBefore: z.number().int().min(0).max(365).default(7),
+  autoPost: z.boolean().default(false), // post automatically on due date
 });
 
 export const scheduledItemUpdateSchema = scheduledItemCreateSchema.partial().extend({
   recurrence: z.enum(["monthly", "yearly"]).nullable().optional(), // null = make one-off
+  counterAccountId: z.string().nullable().optional(),
   status: z.enum(["pending", "logged", "skipped"]).optional(),
 });
 

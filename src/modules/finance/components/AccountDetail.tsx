@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/shell/Card";
 import { CardSkeleton, Skeleton } from "@/shell/Skeleton";
 import { ConfirmButton } from "@/shell/ConfirmButton";
@@ -32,12 +33,19 @@ export function AccountDetail({ id }: { id: string }) {
   const toast = useToast();
   const { privacy } = usePrivacy();
 
+  const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [actual, setActual] = useState("");
   const [fixErr, setFixErr] = useState<string | null>(null);
   const [editingQty, setEditingQty] = useState(false);
   const [qty, setQty] = useState("");
+  const [trade, setTrade] = useState<null | "buy" | "sell">(null);
+  const [tradeQty, setTradeQty] = useState("");
+  const [tradeTotal, setTradeTotal] = useState("");
+  const [tradeFundingId, setTradeFundingId] = useState("");
+  const [tradeBusy, setTradeBusy] = useState(false);
+  const [tradeErr, setTradeErr] = useState<string | null>(null);
 
   const a = accounts?.find((x) => x.id === id);
   const defaultCurrency = currencyData?.defaultCurrency ?? "KWD";
@@ -161,10 +169,31 @@ export function AccountDetail({ id }: { id: string }) {
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          {a.kind === "priced" &&
+            (["buy", "sell"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => {
+                  setTrade(trade === t ? null : t);
+                  setTradeErr(null);
+                  setEditing(false);
+                  setFixing(false);
+                }}
+                className={cn(
+                  "rounded-full border px-3.5 py-1.5 text-[10.5px] font-bold tracking-[1px]",
+                  trade === t
+                    ? "border-ink text-ink"
+                    : "border-border-4 text-muted hover:text-ink",
+                )}
+              >
+                {t.toUpperCase()}
+              </button>
+            ))}
           <button
             onClick={() => {
               setEditing((v) => !v);
               setFixing(false);
+              setTrade(null);
             }}
             className="rounded-full border border-border-4 px-3.5 py-1.5 text-[10.5px] font-bold tracking-[1px] text-muted hover:text-ink"
           >
@@ -205,6 +234,99 @@ export function AccountDetail({ id }: { id: string }) {
             Count in net worth
           </label>
         </div>
+
+        {trade && (
+          <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border-3 bg-card-hover p-2.5">
+            <p className="text-[10.5px] font-bold tracking-[1.5px] text-muted">
+              {trade === "buy" ? "BUY MORE" : "SELL SOME"} — cash-flow-neutral, updates
+              quantity and moves the money
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-1.5 text-[10px] text-faint">
+                Quantity
+                <input
+                  value={tradeQty}
+                  onChange={(e) => setTradeQty(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0.05"
+                  className="num w-24 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-right text-xs text-ink outline-none"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-[10px] text-faint">
+                {trade === "buy" ? "Paid" : "Received"}
+                <input
+                  value={tradeTotal}
+                  onChange={(e) => setTradeTotal(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="Total"
+                  className="num w-24 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-right text-xs text-ink outline-none"
+                />
+              </label>
+              <select
+                value={tradeFundingId}
+                onChange={(e) => setTradeFundingId(e.target.value)}
+                className="min-w-32 flex-1 rounded-lg border border-border-3 bg-surface px-2 py-1.5 text-xs text-ink outline-none"
+              >
+                <option value="">{trade === "buy" ? "Paid from…" : "Received into…"}</option>
+                {(accounts ?? [])
+                  .filter((x) => x.kind === "transactional")
+                  .map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name} ({x.currencyCode})
+                    </option>
+                  ))}
+              </select>
+            </div>
+            {tradeErr && <p className="num text-[10.5px] text-neg">{tradeErr}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  setTradeErr(null);
+                  setTradeBusy(true);
+                  try {
+                    const res = await fetch("/api/finance/holdings/trade", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        holdingAccountId: id,
+                        fundingAccountId: tradeFundingId,
+                        action: trade,
+                        amount: tradeTotal,
+                        quantity: tradeQty,
+                      }),
+                    });
+                    const body = await res.json();
+                    if (!res.ok)
+                      throw new Error(typeof body.error === "string" ? body.error : "Failed");
+                    ["accounts", "transactions", "networth", "cashflow"].forEach((k) =>
+                      qc.invalidateQueries({ queryKey: [k] }),
+                    );
+                    toast.success(
+                      `${trade === "buy" ? "Bought" : "Sold"} ${tradeQty} — now holding ${body.newQuantity}`,
+                    );
+                    setTrade(null);
+                    setTradeQty("");
+                    setTradeTotal("");
+                  } catch (err) {
+                    setTradeErr(err instanceof Error ? err.message : "Failed");
+                  } finally {
+                    setTradeBusy(false);
+                  }
+                }}
+                disabled={tradeBusy || !tradeQty || !tradeTotal || !tradeFundingId}
+                className="rounded-lg bg-ink px-3 py-1.5 text-[10.5px] font-bold tracking-wide text-surface disabled:opacity-50"
+              >
+                {tradeBusy ? "…" : trade.toUpperCase()}
+              </button>
+              <button
+                onClick={() => setTrade(null)}
+                className="px-1.5 text-[10.5px] text-muted hover:text-ink"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {editing && <AccountEditForm account={a} onDone={() => setEditing(false)} />}
         {fixing && (

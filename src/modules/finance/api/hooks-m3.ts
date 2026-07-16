@@ -24,14 +24,16 @@ export interface CampaignDto {
 export interface HorizonItemDto {
   id: string;
   name: string;
-  direction: "inflow" | "outflow";
+  direction: "inflow" | "outflow" | "transfer";
   amountMinor: number;
   currencyCode: string;
   dueDate: string;
   recurrence: "monthly" | "yearly" | null;
   accountId: string | null;
+  counterAccountId: string | null;
   categoryId: string | null;
   alertDaysBefore: number;
+  autoPost: boolean;
   status: "pending" | "logged" | "skipped";
   daysUntil: number;
   warn: boolean;

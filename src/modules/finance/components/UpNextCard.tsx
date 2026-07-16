@@ -64,8 +64,13 @@ export function UpNextCard() {
                     {h.recurrence ? ` · ${h.recurrence}` : ""}
                   </span>
                 </span>
-                <span className={cn("num text-[14px]", out ? "text-ink" : "text-pos")}>
-                  {out ? "−" : "+"}
+                <span
+                  className={cn(
+                    "num text-[14px]",
+                    h.direction === "inflow" ? "text-pos" : "text-ink",
+                  )}
+                >
+                  {h.direction === "transfer" ? "⇄ " : out ? "−" : "+"}
                   {masked(privacy, formatMinor(h.amountMinor, exponentOf(h.currencyCode)))}{" "}
                   <span className="text-[10px] text-faint">{h.currencyCode}</span>
                 </span>

@@ -11,10 +11,11 @@ export interface CashFlow {
   incomeByCategory: { name: string; totalDefaultMinor: number }[];
 }
 
-/** Income/expense/savings for a month, in default currency. Transfers excluded. */
+/** Income/expense/savings for a month, in default currency. Transfers excluded;
+ * refunds NET OUT of expense (money back is not income). */
 export async function computeCashFlow(month: string): Promise<CashFlow> {
   const txns = await prisma.transaction.findMany({
-    where: { date: { startsWith: month }, type: { in: ["expense", "income"] } },
+    where: { date: { startsWith: month }, type: { in: ["expense", "income", "refund"] } },
     include: { category: { select: { name: true } } },
   });
 
@@ -35,9 +36,10 @@ export async function computeCashFlow(month: string): Promise<CashFlow> {
       const key = t.category?.name ?? "Other";
       incomeByCat.set(key, (incomeByCat.get(key) ?? 0) + amt);
     } else {
-      expense += amt;
+      const sign = t.type === "refund" ? -1 : 1;
+      expense += sign * amt;
       const day = Number(t.date.slice(8, 10));
-      if (day >= 1 && day <= daysInMonth) daily[day - 1] += amt;
+      if (day >= 1 && day <= daysInMonth) daily[day - 1] += sign * amt;
     }
   }
 
@@ -75,15 +77,19 @@ export async function computeCategorySpend(month: string): Promise<CategorySpend
       },
     }),
     prisma.transaction.groupBy({
-      by: ["categoryId"],
-      where: { date: { startsWith: month }, type: "expense" },
+      by: ["categoryId", "type"],
+      where: { date: { startsWith: month }, type: { in: ["expense", "refund"] } },
       _sum: { amountDefaultMinor: true },
     }),
   ]);
 
-  const spendMap = new Map(
-    txns.map((t) => [t.categoryId ?? "none", Number(t._sum.amountDefaultMinor ?? 0n)]),
-  );
+  // refunds net out of the category's spend
+  const spendMap = new Map<string, number>();
+  for (const t of txns) {
+    const key = t.categoryId ?? "none";
+    const amt = Number(t._sum.amountDefaultMinor ?? 0n) * (t.type === "refund" ? -1 : 1);
+    spendMap.set(key, (spendMap.get(key) ?? 0) + amt);
+  }
   const budgetMap = new Map(budgets.map((b) => [b.categoryId, b]));
 
   const rows: CategorySpend[] = categories.map((c) => {

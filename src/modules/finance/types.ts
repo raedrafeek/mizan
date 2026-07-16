@@ -49,7 +49,7 @@ export interface CategoryDto {
 export interface TransactionDto {
   id: string;
   accountId: string;
-  type: "expense" | "income" | "transfer_out" | "transfer_in" | "adjustment";
+  type: "expense" | "income" | "transfer_out" | "transfer_in" | "adjustment" | "refund";
   amountMinor: number;
   currencyCode: string;
   fxRateToDefault: string;

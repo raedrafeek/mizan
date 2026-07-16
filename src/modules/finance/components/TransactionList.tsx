@@ -20,6 +20,7 @@ const SIGN: Record<TransactionDto["type"], -1 | 1> = {
   income: 1,
   transfer_in: 1,
   adjustment: 1,
+  refund: 1,
 };
 
 export function TransactionList({
@@ -135,7 +136,7 @@ function TransactionRow({
   const { privacy } = usePrivacy();
   // adjustments carry their own sign in amountMinor; other types derive it
   const sign = t.type === "adjustment" ? (t.amountMinor < 0 ? -1 : 1) : SIGN[t.type];
-  const label =
+  const base =
     t.category?.name ??
     (t.type === "transfer_out"
       ? "Transfer out"
@@ -144,6 +145,7 @@ function TransactionRow({
         : t.type === "adjustment"
           ? "Balance correction"
           : "Uncategorized");
+  const label = t.type === "refund" ? `Refund — ${base}` : base;
   return (
     <button
       onClick={onOpen}
