@@ -42,42 +42,42 @@ export function AlertTray() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-8 z-50 w-[320px] rounded-xl border border-border-4 bg-card shadow-2xl">
-          <div className="flex items-center border-b border-border px-3.5 py-2.5">
-            <span className="text-[10.5px] font-semibold tracking-[2px] text-muted">
-              ALERTS &amp; REMINDERS
-            </span>
+        <div className="absolute right-0 top-8 z-50 w-[min(340px,calc(100vw-32px))] rounded-2xl border border-border-4 bg-card shadow-2xl">
+          <div className="flex items-baseline border-b border-border px-4 py-3">
+            <span className="text-[10.5px] font-bold tracking-[2px] text-faint">INSIGHTS</span>
             {count > 0 && (
               <button
                 onClick={() => dismiss.mutate("all")}
-                className="ml-auto text-[10px] text-faint hover:text-ink"
+                className="ml-auto text-[11px] text-muted hover:text-ink"
               >
-                clear all
+                Clear all
               </button>
             )}
           </div>
-          <div className="max-h-[320px] overflow-y-auto p-1.5">
+          <div className="max-h-[340px] overflow-y-auto p-1.5">
             {count === 0 && (
-              <p className="px-2 py-3 text-center text-xs text-faint">All clear ✓</p>
+              <p className="px-2 py-4 text-center text-[12.5px] text-muted">
+                All clear — nothing needs your attention.
+              </p>
             )}
             {(alerts ?? []).map((a) => (
               <div
                 key={a.id}
-                className="group flex items-start gap-2.5 rounded-lg px-2 py-2 hover:bg-card-hover"
+                className="group flex items-start gap-2.5 rounded-xl px-2.5 py-2.5 hover:bg-card-hover"
               >
                 <span
                   className={cn(
-                    "mt-[5px] h-1.5 w-1.5 flex-none rounded-full",
+                    "mt-[6px] h-1.5 w-1.5 flex-none rounded-full",
                     DOT[a.severity] ?? DOT.info,
                   )}
                 />
-                <span className="flex-1 text-xs leading-relaxed text-ink-2">{a.title}</span>
+                <span className="flex-1 text-[13px] leading-relaxed text-ink-2">{a.title}</span>
                 <button
                   onClick={() => dismiss.mutate(a.id)}
                   className="touch-show -m-1 hidden p-2 text-faint opacity-0 hover:text-ink group-hover:block group-hover:opacity-100"
                   aria-label="Dismiss"
                 >
-                  ✕
+                  ×
                 </button>
               </div>
             ))}

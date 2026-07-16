@@ -9,10 +9,53 @@ import { useCategories, useCreateCategory } from "@/modules/finance/api/hooks";
 import { useToast } from "@/shell/toast";
 import type { CategoryDto } from "@/modules/finance/types";
 
+// icons that make sense for spending/income categories
+const CATEGORY_ICONS = [
+  "other",
+  "groceries",
+  "housing",
+  "transport",
+  "health",
+  "dining",
+  "financial",
+  "salary",
+  "bonus",
+  "project",
+  "wallet",
+  "credit_card",
+] as const;
+
+function IconPicker({
+  value,
+  onPick,
+}: {
+  value: string;
+  onPick: (icon: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {CATEGORY_ICONS.map((icon) => (
+        <button
+          key={icon}
+          onClick={() => onPick(icon)}
+          aria-label={`Icon ${icon}`}
+          className={
+            icon === value
+              ? "flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-surface"
+              : "flex h-8 w-8 items-center justify-center rounded-lg bg-inset text-muted hover:text-ink"
+          }
+        >
+          <Icon name={icon} size={14} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function useUpdateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...input }: { id: string; name?: string; archived?: boolean }) => {
+    mutationFn: async ({ id, ...input }: { id: string; name?: string; icon?: string; archived?: boolean }) => {
       const res = await fetch(`/api/finance/categories/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -46,12 +89,14 @@ export default function CategoriesPage() {
   const toast = useToast();
   const [name, setName] = useState("");
   const [type, setType] = useState<"expense" | "income">("expense");
+  const [icon, setIcon] = useState("other");
 
   async function add() {
     if (!name.trim()) return;
     try {
-      await create.mutateAsync({ name: name.trim(), type });
+      await create.mutateAsync({ name: name.trim(), type, icon });
       setName("");
+      setIcon("other");
       toast.success(`Added "${name.trim()}"`);
     } catch {
       toast.error("Failed to add category");
@@ -89,6 +134,9 @@ export default function CategoriesPage() {
           >
             ADD
           </button>
+        </div>
+        <div className="mt-3">
+          <IconPicker value={icon} onPick={setIcon} />
         </div>
       </Card>
 
@@ -154,6 +202,7 @@ function CategoryRow({ category: c }: { category: CategoryDto }) {
   const update = useUpdateCategory();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
+  const [pickingIcon, setPickingIcon] = useState(false);
   const [draft, setDraft] = useState(c.name);
 
   async function save() {
@@ -167,11 +216,40 @@ function CategoryRow({ category: c }: { category: CategoryDto }) {
     setEditing(false);
   }
 
+  if (pickingIcon) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-[9px] bg-card-hover px-1.5 py-2">
+        <span className="text-[11.5px] text-muted">{c.name}:</span>
+        <IconPicker
+          value={c.icon}
+          onPick={async (icon) => {
+            try {
+              await update.mutateAsync({ id: c.id, icon });
+            } catch {
+              toast.error("Icon change failed");
+            }
+            setPickingIcon(false);
+          }}
+        />
+        <button
+          onClick={() => setPickingIcon(false)}
+          className="ml-auto px-1 text-[11px] text-muted hover:text-ink"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="group flex items-center gap-2.5 rounded-[9px] px-1.5 py-2 hover:bg-card-hover">
-      <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-inset text-muted">
+      <button
+        onClick={() => setPickingIcon(true)}
+        title="Change icon"
+        className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-inset text-muted hover:text-ink"
+      >
         <Icon name={c.icon} size={13} />
-      </span>
+      </button>
       {editing ? (
         <input
           autoFocus

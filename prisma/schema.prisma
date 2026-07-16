@@ -106,6 +106,11 @@ model Transaction {
   date               String // "YYYY-MM-DD"
   note               String?
   transferGroupId    String? // links the two legs of a transfer
+  // holding trades: which priced account and how much quantity this trade
+  // moved (sign from type: transfer_out = buy, transfer_in = sell) — lets
+  // DELETE revert the quantity instead of silently double-counting
+  tradeHoldingAccountId String?
+  tradeQuantity         Decimal? @db.Decimal(30, 12)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 

@@ -61,6 +61,34 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   const existing = await prisma.transaction.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // a holding trade also moved quantity — revert it atomically with the delete
+  if (existing.tradeQuantity !== null && existing.tradeHoldingAccountId) {
+    const holding = await prisma.account.findUnique({
+      where: { id: existing.tradeHoldingAccountId },
+    });
+    if (holding) {
+      const qty = new Decimal(existing.tradeQuantity.toString());
+      const delta = existing.type === "transfer_out" ? qty.neg() : qty; // undo buy = remove, undo sell = restore
+      const newQty = new Decimal(holding.quantity?.toString() ?? "0").plus(delta);
+      if (newQty.isNegative()) {
+        return NextResponse.json(
+          {
+            error: `Deleting this would leave ${holding.name} at ${newQty.toString()} — sell less first or edit the quantity manually`,
+          },
+          { status: 400 },
+        );
+      }
+      await prisma.$transaction([
+        prisma.account.update({
+          where: { id: holding.id },
+          data: { quantity: newQty.toString() },
+        }),
+        prisma.transaction.delete({ where: { id } }),
+      ]);
+      return NextResponse.json({ deleted: true, quantityReverted: true });
+    }
+  }
+
   if (existing.transferGroupId) {
     // delete both legs of a transfer
     await prisma.transaction.deleteMany({

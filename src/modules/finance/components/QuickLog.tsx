@@ -57,6 +57,7 @@ export function QuickLog({
   compact?: boolean;
 }) {
   const [mode, setMode] = useState<Mode>("expense");
+  const [isRefund, setIsRefund] = useState(false); // income mode: money back against spending
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [counterId, setCounterId] = useState<string | null>(null);
@@ -96,26 +97,28 @@ export function QuickLog({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  // rail ordered by this device's usage (most-logged categories first)
+  // rail ordered by this device's usage (most-logged categories first);
+  // refunds pick from EXPENSE categories — money goes back where it came from
+  const wantIncomeCats = mode === "income" && !isRefund;
   const rail = useMemo(() => {
     const usage = typeof window === "undefined" ? {} : readUsage();
     return (categories ?? [])
-      .filter((c) => c.type === (mode === "income" ? "income" : "expense"))
+      .filter((c) => c.type === (wantIncomeCats ? "income" : "expense"))
       .sort(
         (a, b) =>
           (usage[b.id] ?? 0) - (usage[a.id] ?? 0) || a.sortOrder - b.sortOrder,
       );
-  }, [categories, mode]);
+  }, [categories, wantIncomeCats]);
 
   // a category is ALWAYS selected (last used per mode, else first in rail) —
   // no "Uncategorized" logs from the quick-log
   useEffect(() => {
     if (mode === "transfer" || rail.length === 0) return;
     if (categoryId && rail.some((c) => c.id === categoryId)) return;
-    const saved = localStorage.getItem(`${LAST_CAT_KEY}.${mode}`);
+    const saved = localStorage.getItem(`${LAST_CAT_KEY}.${wantIncomeCats ? "income" : "expense"}`);
     const next = rail.find((c) => c.id === saved) ?? rail[0];
     setCategoryId(next.id);
-  }, [rail, mode, categoryId]);
+  }, [rail, mode, categoryId, wantIncomeCats]);
   const counterAccounts = useMemo(
     () =>
       (accounts ?? []).filter((a) => a.kind === "transactional" && a.id !== account?.id),
@@ -160,10 +163,11 @@ export function QuickLog({
 
     const payload = {
       accountId: account.id,
-      type: (mode === "transfer" ? "transfer_out" : mode) as
-        | "expense"
-        | "income"
-        | "transfer_out",
+      type: (mode === "transfer"
+        ? "transfer_out"
+        : mode === "income" && isRefund
+          ? "refund"
+          : mode) as "expense" | "income" | "transfer_out" | "refund",
       amount,
       categoryId: mode === "transfer" ? undefined : categoryId!,
       counterAccountId: mode === "transfer" ? counter!.id : undefined,
@@ -183,7 +187,7 @@ export function QuickLog({
     setTimeout(() => setFlash(false), 1200);
     if (mode !== "transfer" && categoryId) {
       bumpUsage(categoryId);
-      localStorage.setItem(`${LAST_CAT_KEY}.${mode}`, categoryId);
+      if (!isRefund) localStorage.setItem(`${LAST_CAT_KEY}.${mode}`, categoryId);
     }
 
     create.mutate(payload, {
@@ -223,6 +227,7 @@ export function QuickLog({
               key={m}
               onClick={() => {
                 setMode(m);
+                setIsRefund(false);
                 setCategoryId(null);
                 setCounterId(null);
               }}
@@ -318,6 +323,25 @@ export function QuickLog({
             </div>
           )}
         </div>
+
+        {/* refund toggle (income mode): money back against spending */}
+        {mode === "income" && (
+          <button
+            onClick={() => {
+              setIsRefund((v) => !v);
+              setCategoryId(null);
+            }}
+            title="Money back against something you spent — nets out of that category instead of counting as income"
+            className={cn(
+              "flex-none rounded-[11px] border px-2.5 py-2.5 text-[11px] font-semibold",
+              isRefund
+                ? "border-pos/50 bg-pos/10 text-pos"
+                : "border-border-3 bg-surface text-muted",
+            )}
+          >
+            ↩ refund
+          </button>
+        )}
 
         {/* category rail / destination account rail — own full-width row on phones */}
         <div className="relative min-w-0 grow basis-full overflow-hidden sm:basis-0">

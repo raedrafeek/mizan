@@ -38,7 +38,10 @@ export default function LoginPage() {
         </span>
         <h1 className="text-lg font-bold tracking-[4px]">MIZAN</h1>
       </div>
-      <div className="flex w-full max-w-xs flex-col gap-3">
+      <div className="flex w-full max-w-xs flex-col gap-3 rounded-3xl border border-border-2 bg-card p-6">
+        <p className="text-center text-[12.5px] text-muted">
+          Welcome back — unlock your money.
+        </p>
         <input
           type="password"
           value={password}
@@ -46,7 +49,7 @@ export default function LoginPage() {
           onKeyDown={(e) => e.key === "Enter" && unlock()}
           placeholder="Password"
           autoFocus
-          className="rounded-xl border border-border-3 bg-card px-4 py-3 text-center text-sm text-ink outline-none focus:border-border-5"
+          className="rounded-xl border border-border-3 bg-surface px-4 py-3 text-center text-sm text-ink outline-none focus:border-border-5"
         />
         <button
           onClick={unlock}
@@ -55,7 +58,9 @@ export default function LoginPage() {
         >
           {busy ? "…" : "UNLOCK"}
         </button>
-        <p className="num min-h-[15px] text-center text-[11px] text-neg">{err}</p>
+        <p className="num min-h-[15px] text-center text-[11px] text-neg">
+          {err === "Failed" ? "That's not it — try again" : err}
+        </p>
       </div>
     </main>
   );

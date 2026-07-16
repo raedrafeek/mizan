@@ -58,6 +58,8 @@ export interface TransactionDto {
   date: string;
   note: string | null;
   transferGroupId: string | null;
+  tradeHoldingAccountId: string | null;
+  tradeQuantity: string | null;
   category: CategoryDto | null;
   account: { name: string; currencyCode: string };
 }

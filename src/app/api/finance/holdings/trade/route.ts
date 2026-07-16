@@ -71,6 +71,9 @@ export async function POST(req: NextRequest) {
         amountDefaultMinor: BigInt(convertMinor(amountMinor, rate.rate, exponent, fx.defExponent)),
         date: today,
         note: `${verb} ${qty.toString()} ${holding.assetSymbol ?? holding.name}`,
+        // lets DELETE revert the quantity change instead of double-counting
+        tradeHoldingAccountId: holding.id,
+        tradeQuantity: qty.toString(),
       },
     }),
     prisma.account.update({

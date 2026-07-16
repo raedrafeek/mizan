@@ -147,6 +147,11 @@ export function TransactionSheet({
             placeholder="Note…"
             className="rounded-xl border border-border-3 bg-surface px-3 py-2.5 text-xs text-ink outline-none"
           />
+          {t.tradeQuantity && (
+            <p className="text-[10.5px] leading-relaxed text-muted">
+              Holding trade — deleting it also reverts the {t.tradeQuantity} quantity change.
+            </p>
+          )}
           {t.type === "adjustment" && (
             <p className="text-[10.5px] leading-relaxed text-muted">
               This correction {t.amountMinor < 0 ? "decreases" : "increases"} the balance —

@@ -172,22 +172,31 @@ export async function logScheduledItem(id: string): Promise<LogResult> {
 
 /**
  * Post every pending auto-post item whose due date has arrived (Kuwait time).
- * Called from the daily cron. Recurring items roll forward and will post
- * again next cycle; failures are recorded and skipped, never thrown.
+ * Called from the daily cron. Recurring items that are several periods
+ * overdue catch up fully in ONE run (each post rolls the due date forward,
+ * so we loop per item until it's no longer due — bounded for safety).
+ * Failures are recorded and skipped, never thrown.
  */
 export async function postDueScheduledItems(): Promise<{ posted: number; failed: number }> {
   const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
   const due = await prisma.scheduledItem.findMany({
     where: { status: "pending", autoPost: true, dueDate: { lte: today } },
+    select: { id: true, name: true },
   });
   let posted = 0;
   let failed = 0;
   for (const item of due) {
-    const res = await logScheduledItem(item.id);
-    if (res.ok) posted++;
-    else {
-      failed++;
-      console.error(`auto-post failed for ${item.id} (${item.name}): ${res.error}`);
+    for (let i = 0; i < 36; i++) {
+      const current = await prisma.scheduledItem.findUnique({ where: { id: item.id } });
+      if (!current || current.status !== "pending" || current.dueDate > today) break;
+      const res = await logScheduledItem(item.id);
+      if (res.ok) {
+        posted++;
+      } else {
+        failed++;
+        console.error(`auto-post failed for ${item.id} (${item.name}): ${res.error}`);
+        break; // don't retry a failing item in a loop
+      }
     }
   }
   return { posted, failed };

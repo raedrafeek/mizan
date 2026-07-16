@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Decimal from "decimal.js";
 import { cn } from "@/lib/cn";
 import { fmt, todayISO } from "@/lib/format-money";
@@ -60,6 +61,7 @@ export function NumpadLog() {
   const create = useCreateTransaction();
   const del = useDeleteTransaction();
   const toast = useToast();
+  const qc = useQueryClient();
   const { privacy } = usePrivacy();
 
   const [mode, setMode] = useState<Mode>("expense");
@@ -261,7 +263,7 @@ export function NumpadLog() {
 
   async function commitSplit() {
     if (!account || !partsValid || remainderMinor < 0) return;
-    const entries: { type: "expense" | "transfer_out"; amount: string; categoryId?: string; counterAccountId?: string }[] =
+    const parts: { type: "expense" | "transfer_out"; amount: string; categoryId?: string; counterAccountId?: string }[] =
       splits.map((s, i) => {
         const [kind, id] = s.target.split(":");
         return kind === "cat"
@@ -269,7 +271,7 @@ export function NumpadLog() {
           : { type: "transfer_out" as const, amount: toMajor(partsMinor[i]), counterAccountId: id };
       });
     if (remainderMinor > 0 && categoryId) {
-      entries.unshift({ type: "expense", amount: toMajor(remainderMinor), categoryId });
+      parts.unshift({ type: "expense", amount: toMajor(remainderMinor), categoryId });
     }
     setSplitOpen(false);
     setAmountStr("");
@@ -277,26 +279,32 @@ export function NumpadLog() {
     setNoteOpen(false);
     if (navigator.vibrate) navigator.vibrate(12);
     try {
-      const ids: string[] = [];
-      for (const e of entries) {
-        const created = (await create.mutateAsync({
+      // atomic: all parts or none
+      const res = await fetch("/api/finance/transactions/split", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           accountId: account.id,
-          type: e.type,
-          amount: e.amount,
-          categoryId: e.categoryId,
-          counterAccountId: e.counterAccountId,
           date,
           note: note || undefined,
-        })) as { id: string };
-        ids.push(created.id);
+          parts,
+        }),
+      });
+      const body = (await res.json()) as { ids?: string[]; error?: unknown };
+      if (!res.ok) {
+        throw new Error(typeof body.error === "string" ? body.error : "Split failed");
       }
-      toast.success(`Split ${amountStr || toMajor(totalMinor)} into ${entries.length} parts`, {
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["cashflow"] });
+      qc.invalidateQueries({ queryKey: ["networth"] });
+      toast.success(`Split ${toMajor(totalMinor)} into ${parts.length} parts`, {
         label: "UNDO",
-        onClick: () => ids.forEach((id) => del.mutate(id)),
+        onClick: () => (body.ids ?? []).forEach((id) => del.mutate(id)),
       });
     } catch (e) {
       toast.error(
-        `Split failed midway: ${e instanceof Error ? e.message : "request failed"} — check Activity`,
+        `Nothing was logged: ${e instanceof Error ? e.message : "request failed"}`,
       );
     }
   }
