@@ -10,8 +10,8 @@ import { useCurrencies } from "../api/hooks";
 import { useMonthlyReport, useNetWorth } from "../api/hooks-m2";
 import { Icon } from "./Icon";
 
-function monthLetter(month: string): string {
-  return "JFMAMJJASOND"[Number(month.slice(5, 7)) - 1] ?? "?";
+function monthShort(month: string): string {
+  return new Date(month + "-01T00:00:00").toLocaleString("en", { month: "short" });
 }
 
 function xy(values: number[], w: number, h: number, pad = 4): [number, number][] {
@@ -110,14 +110,27 @@ export function TrendsView() {
                 />
                 <text
                   x={x0 + SLOT / 2}
-                  y={128}
+                  y={126}
                   textAnchor="middle"
-                  fontSize={9}
+                  fontSize={8}
                   fill={i === last ? "var(--color-ink)" : "var(--color-faint)"}
                   className="num"
                 >
-                  {monthLetter(m.month)}
+                  {monthShort(m.month)}
                 </text>
+                {/* mark the year at the series start and each January */}
+                {(i === 0 || m.month.endsWith("-01")) && (
+                  <text
+                    x={x0 + SLOT / 2}
+                    y={136}
+                    textAnchor="middle"
+                    fontSize={7.5}
+                    fill="var(--color-faint)"
+                    className="num"
+                  >
+                    ’{m.month.slice(2, 4)}
+                  </text>
+                )}
               </g>
             );
           })}
