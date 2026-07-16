@@ -417,7 +417,7 @@ function AccountForm({ onDone }: { onDone: () => void }) {
 
   return (
     <Card title="NEW ACCOUNT">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-[11px] text-muted">
           Name
           <input

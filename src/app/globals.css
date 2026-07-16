@@ -40,8 +40,6 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   padding-top: env(safe-area-inset-top);
-  /* a stray wide element must never shift the whole page sideways */
-  overflow-x: clip;
 }
 
 .num {

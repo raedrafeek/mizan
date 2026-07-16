@@ -27,7 +27,7 @@ export default function PlanPage() {
         </div>
       </div>
       {wizard && <BudgetWizard onDone={() => setWizard(false)} />}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <TopCategoriesCard month={month} />
         <div className="flex flex-col gap-4">
           <HorizonCard />

@@ -26,7 +26,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const immersive = pathname === "/log";
 
   return (
-    <div className="min-h-screen">
+    // overflow-x-clip lives HERE, not on body — body overflow propagates to
+    // the viewport, which disables panning and lets iOS zoom out instead
+    <div className="min-h-screen overflow-x-clip">
       {!immersive && <TopBar />}
       <Rail destinations={destinations} />
       <main

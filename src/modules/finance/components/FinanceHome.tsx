@@ -91,7 +91,9 @@ export function FinanceHome() {
         />
         <QuickLog account={selected} />
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* grid-cols-1 = minmax(0,1fr): without it the implicit track grows to
+          min-content and long lines blow the page wider than the viewport */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <UpNextCard />
         <CashFlowCard month={month} onMonthChange={setMonth} />
         <Card
