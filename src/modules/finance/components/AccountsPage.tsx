@@ -49,13 +49,23 @@ export function AccountsPage() {
       (goalByAccount.has(a.id) || /sav|deposit|fund/i.test(a.name)),
   );
   const savingIds = new Set(savings.map((a) => a.id));
+  // person-debts: loans you took (subtype loan) and money you lent out
+  // (tracked as transactional "other" asset accounts)
+  const lending = list.filter(
+    (a) =>
+      a.kind === "transactional" &&
+      !savingIds.has(a.id) &&
+      (a.subtype === "loan" || a.subtype === "other"),
+  );
+  const lendingIds = new Set(lending.map((a) => a.id));
   const spending = list.filter(
-    (a) => a.kind === "transactional" && !savingIds.has(a.id),
+    (a) => a.kind === "transactional" && !savingIds.has(a.id) && !lendingIds.has(a.id),
   );
 
   const groups: [string, AccountDto[]][] = [
     ["SPENDING", spending],
     ["SAVINGS", savings],
+    ["LENT & BORROWED", lending],
     ["HOLDINGS", holdings],
   ];
 
@@ -154,6 +164,14 @@ function hintFor(a: AccountDto, goalName?: string): string {
   if (goalName) return `feeds the “${goalName}” goal`;
   if (a.subtype === "credit_card" && (a.balance?.balanceMinor ?? 0) < 0)
     return "credit card · outstanding balance";
+  if (a.subtype === "loan") {
+    const bal = a.balance?.balanceMinor ?? 0;
+    return bal < 0 ? "borrowed · you owe this" : bal === 0 ? "loan · settled" : "loan";
+  }
+  if (a.subtype === "other" && a.kind === "transactional") {
+    const bal = a.balance?.balanceMinor ?? 0;
+    return bal > 0 ? "lent · owed to you" : bal === 0 ? "settled" : `other · ${a.currencyCode}`;
+  }
   return `${a.subtype.replace("_", " ")} · ${a.currencyCode}`;
 }
 
