@@ -27,15 +27,20 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const exponent = fx.currencies.get(existing.currencyCode)?.exponent ?? 2;
 
+  // adjustments carry a SIGNED amountMinor; the edit UI sends the absolute
+  // value, so preserve the original direction or the balance silently corrupts
+  const sign =
+    existing.type === "adjustment" && existing.amountMinor < 0n ? -1 : 1;
   const amountMinor =
     input.amount !== undefined
-      ? parseAmount(input.amount, exponent)
+      ? sign * parseAmount(input.amount, exponent)
       : Number(existing.amountMinor);
   const rate =
     input.fxRateToDefault !== undefined
       ? new Decimal(input.fxRateToDefault)
       : new Decimal(existing.fxRateToDefault.toString());
-  const amountDefaultMinor = convertMinor(amountMinor, rate, exponent, fx.defExponent);
+  const amountDefaultMinor =
+    sign * convertMinor(Math.abs(amountMinor), rate, exponent, fx.defExponent);
 
   const txn = await prisma.transaction.update({
     where: { id },

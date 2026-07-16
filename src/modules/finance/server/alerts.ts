@@ -79,7 +79,7 @@ export async function evaluateFinanceAlerts(force = false): Promise<void> {
     );
     if (daysUntil > i.alertDaysBefore) continue;
     const exponent = fx.currencies.get(i.currencyCode)?.exponent ?? 2;
-    const amt = `${i.direction === "outflow" ? "−" : "+"}${formatMinor(Number(i.amountMinor), exponent)} ${i.currencyCode}`;
+    const amt = `${i.direction === "transfer" ? "⇄ " : i.direction === "outflow" ? "−" : "+"}${formatMinor(Number(i.amountMinor), exponent)} ${i.currencyCode}`;
     await upsertAlert({
       kind: "horizon_due",
       severity: daysUntil < 0 ? "critical" : "warn",
