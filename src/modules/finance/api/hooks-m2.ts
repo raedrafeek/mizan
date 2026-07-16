@@ -43,11 +43,31 @@ async function get<T>(url: string): Promise<T> {
   return res.json();
 }
 
-export function useNetWorth() {
+export function useNetWorth(days = 30) {
   return useQuery({
-    queryKey: ["networth"],
-    queryFn: () => get<NetWorthResponse>("/api/finance/networth"),
+    queryKey: ["networth", days],
+    queryFn: () => get<NetWorthResponse>(`/api/finance/networth?days=${days}`),
     staleTime: 60_000,
+  });
+}
+
+export interface MonthlyReportResponse {
+  months: {
+    month: string;
+    incomeDefaultMinor: number;
+    expenseDefaultMinor: number;
+    savingsDefaultMinor: number;
+    savingsRatePct: number | null;
+  }[];
+  categories: { categoryId: string; name: string; icon: string; monthly: number[] }[];
+  incomeMix: { name: string; totalDefaultMinor: number }[];
+}
+
+export function useMonthlyReport(months = 12) {
+  return useQuery({
+    queryKey: ["monthly-report", months],
+    queryFn: () => get<MonthlyReportResponse>(`/api/finance/reports/monthly?months=${months}`),
+    staleTime: 5 * 60_000,
   });
 }
 

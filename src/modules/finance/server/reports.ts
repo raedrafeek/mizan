@@ -57,6 +57,101 @@ export async function computeCashFlow(month: string): Promise<CashFlow> {
   };
 }
 
+export interface MonthlyReport {
+  /** oldest → newest */
+  months: {
+    month: string;
+    incomeDefaultMinor: number;
+    expenseDefaultMinor: number; // net of refunds
+    savingsDefaultMinor: number;
+    savingsRatePct: number | null;
+  }[];
+  /** expense categories with any activity, biggest total first; monthly aligned to `months` */
+  categories: { categoryId: string; name: string; icon: string; monthly: number[] }[];
+  /** income by category over the whole period */
+  incomeMix: { name: string; totalDefaultMinor: number }[];
+}
+
+/** Multi-month aggregates for the Trends view — ONE transaction query. */
+export async function computeMonthlyReport(monthCount = 12): Promise<MonthlyReport> {
+  const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+  const monthKeys: string[] = [];
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7));
+  for (let i = monthCount - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(y, m - 1 - i, 1));
+    monthKeys.push(d.toISOString().slice(0, 7));
+  }
+  const monthIndex = new Map(monthKeys.map((k, i) => [k, i]));
+
+  const txns = await prisma.transaction.findMany({
+    where: {
+      date: { gte: `${monthKeys[0]}-01` },
+      type: { in: ["expense", "income", "refund"] },
+    },
+    select: {
+      date: true,
+      type: true,
+      amountDefaultMinor: true,
+      categoryId: true,
+      category: { select: { name: true, icon: true } },
+    },
+  });
+
+  const income = Array(monthCount).fill(0);
+  const expense = Array(monthCount).fill(0);
+  const catAgg = new Map<string, { name: string; icon: string; monthly: number[] }>();
+  const incomeMix = new Map<string, number>();
+
+  for (const t of txns) {
+    const idx = monthIndex.get(t.date.slice(0, 7));
+    if (idx === undefined) continue;
+    const amt = Number(t.amountDefaultMinor);
+    if (t.type === "income") {
+      income[idx] += amt;
+      const key = t.category?.name ?? "Other";
+      incomeMix.set(key, (incomeMix.get(key) ?? 0) + amt);
+    } else {
+      const sign = t.type === "refund" ? -1 : 1;
+      expense[idx] += sign * amt;
+      const catKey = t.categoryId ?? "none";
+      let cat = catAgg.get(catKey);
+      if (!cat) {
+        cat = {
+          name: t.category?.name ?? "Uncategorized",
+          icon: t.category?.icon ?? "other",
+          monthly: Array(monthCount).fill(0),
+        };
+        catAgg.set(catKey, cat);
+      }
+      cat.monthly[idx] += sign * amt;
+    }
+  }
+
+  return {
+    months: monthKeys.map((month, i) => {
+      const savings = income[i] - expense[i];
+      return {
+        month,
+        incomeDefaultMinor: income[i],
+        expenseDefaultMinor: expense[i],
+        savingsDefaultMinor: savings,
+        savingsRatePct: income[i] > 0 ? Math.round((savings / income[i]) * 1000) / 10 : null,
+      };
+    }),
+    categories: [...catAgg.entries()]
+      .map(([categoryId, c]) => ({ categoryId, ...c }))
+      .sort(
+        (a, b) =>
+          b.monthly.reduce((s, v) => s + v, 0) - a.monthly.reduce((s, v) => s + v, 0),
+      )
+      .slice(0, 10),
+    incomeMix: [...incomeMix.entries()]
+      .map(([name, totalDefaultMinor]) => ({ name, totalDefaultMinor }))
+      .sort((a, b) => b.totalDefaultMinor - a.totalDefaultMinor),
+  };
+}
+
 export interface CategorySpend {
   categoryId: string;
   name: string;

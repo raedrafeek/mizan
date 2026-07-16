@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
 import { TransactionList } from "@/modules/finance/components/TransactionList";
+import { TrendsView } from "@/modules/finance/components/TrendsView";
 import { useAccounts, useCategories } from "@/modules/finance/api/hooks";
 
 function FilterChip({
@@ -84,6 +85,7 @@ function ActivityPageInner() {
   const sp = useSearchParams();
   const { data: accounts } = useAccounts();
   const { data: categories } = useCategories();
+  const [view, setView] = useState<"list" | "trends">("list");
   const [accountId, setAccountId] = useState(sp.get("accountId") ?? "");
   const [categoryId, setCategoryId] = useState(sp.get("categoryId") ?? "");
   const [month, setMonth] = useState(sp.get("month") ?? "");
@@ -108,6 +110,30 @@ function ActivityPageInner() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* the past, two ways: the list of what happened, or the trends across months */}
+      <div className="mx-auto flex gap-1 rounded-xl border border-border-3 bg-surface p-1">
+        {(
+          [
+            ["list", "LIST"],
+            ["trends", "TRENDS"],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={cn(
+              "rounded-lg px-5 py-1.5 text-[11px] font-bold tracking-[0.8px]",
+              view === v ? "bg-inset-2 text-ink" : "text-faint",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "trends" && <TrendsView />}
+
+      <div className={cn(view === "trends" && "hidden", "flex flex-col gap-3")}>
       <div className="flex items-center gap-2 rounded-2xl border border-border-2 bg-card px-4 py-3">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-none text-faint">
           <circle cx="11" cy="11" r="7" />
@@ -197,6 +223,7 @@ function ActivityPageInner() {
           />
         </PickerSheet>
       )}
+      </div>
     </div>
   );
 }
