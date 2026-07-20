@@ -1,7 +1,8 @@
-import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { convertMinor, minorToDecimalString } from "@/lib/money";
+import { kuwaitToday } from "@/lib/dates";
 import { loadFxContext } from "./fx";
+import { buildTransferLegs } from "./transfers";
 
 export type LogResult =
   | { ok: true; transactionId: string; display: string }
@@ -80,7 +81,7 @@ export async function logScheduledItem(id: string): Promise<LogResult> {
     acctExponent,
     fx.defExponent,
   );
-  const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+  const today = kuwaitToday();
 
   const rollForward = item.recurrence
     ? prisma.scheduledItem.update({
@@ -102,50 +103,14 @@ export async function logScheduledItem(id: string): Promise<LogResult> {
         status: 400,
       };
     }
-    const counterExponent = fx.currencies.get(counter.currencyCode)?.exponent ?? 2;
-    const counterRate = fx.rateToDefault(counter.currencyCode);
-    if (counterRate.rate.isZero()) {
-      return { ok: false, error: `No FX rate for ${counter.currencyCode}`, status: 409 };
-    }
-    let counterMinor = amountMinor;
-    if (counter.currencyCode !== account.currencyCode) {
-      counterMinor = convertMinor(
-        amountMinor,
-        acctRate.rate.div(counterRate.rate),
-        acctExponent,
-        counterExponent,
-      );
-    }
-    const groupId = randomUUID();
+    const legs = buildTransferLegs(fx, account, counter, amountMinor, {
+      date: today,
+      note: item.name,
+    });
+    if (!legs.ok) return { ok: false, error: legs.error, status: legs.status };
     const [outLeg] = await prisma.$transaction([
-      prisma.transaction.create({
-        data: {
-          accountId: account.id,
-          type: "transfer_out",
-          amountMinor: BigInt(amountMinor),
-          currencyCode: account.currencyCode,
-          fxRateToDefault: acctRate.rate.toString(),
-          amountDefaultMinor: BigInt(amountDefaultMinor),
-          date: today,
-          note: item.name,
-          transferGroupId: groupId,
-        },
-      }),
-      prisma.transaction.create({
-        data: {
-          accountId: counter.id,
-          type: "transfer_in",
-          amountMinor: BigInt(counterMinor),
-          currencyCode: counter.currencyCode,
-          fxRateToDefault: counterRate.rate.toString(),
-          amountDefaultMinor: BigInt(
-            convertMinor(counterMinor, counterRate.rate, counterExponent, fx.defExponent),
-          ),
-          date: today,
-          note: item.name,
-          transferGroupId: groupId,
-        },
-      }),
+      prisma.transaction.create({ data: legs.outData }),
+      prisma.transaction.create({ data: legs.inData }),
       rollForward,
     ]);
     txnId = outLeg.id;
@@ -187,7 +152,7 @@ export async function logScheduledItem(id: string): Promise<LogResult> {
  * Failures are recorded and skipped, never thrown.
  */
 export async function postDueScheduledItems(): Promise<{ posted: number; failed: number }> {
-  const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+  const today = kuwaitToday();
   const due = await prisma.scheduledItem.findMany({
     where: { status: "pending", autoPost: true, dueDate: { lte: today } },
     select: { id: true, name: true },

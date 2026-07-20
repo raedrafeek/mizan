@@ -6,6 +6,7 @@ import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, parseAmount } from "@/lib/money";
 import { loadFxContext } from "@/modules/finance/server/fx";
 import { withErrors } from "@/lib/api-errors";
+import { kuwaitToday } from "@/lib/dates";
 
 const tradeSchema = z.object({
   holdingAccountId: z.string().min(1),
@@ -58,7 +59,7 @@ export const POST = withErrors(async (req: NextRequest) => {
   if (rate.rate.isZero()) {
     return NextResponse.json({ error: `No FX rate for ${funding.currencyCode}` }, { status: 409 });
   }
-  const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+  const today = kuwaitToday();
   const verb = input.action === "buy" ? "Buy" : "Sell";
 
   const [txn] = await prisma.$transaction([

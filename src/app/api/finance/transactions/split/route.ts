@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, parseAmount } from "@/lib/money";
 import { loadFxContext } from "@/modules/finance/server/fx";
+import { buildTransferLegs } from "@/modules/finance/server/transfers";
 import { withErrors } from "@/lib/api-errors";
+import { kuwaitToday } from "@/lib/dates";
 import type { Prisma } from "@prisma/client";
 
 const splitSchema = z.object({
@@ -33,8 +34,7 @@ export const POST = withErrors(async (req: NextRequest) => {
   }
   const input = parsed.data;
 
-  const kuwaitToday = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
-  if (input.date > kuwaitToday) {
+  if (input.date > kuwaitToday()) {
     return NextResponse.json({ error: `Date ${input.date} is in the future` }, { status: 400 });
   }
 
@@ -84,50 +84,14 @@ export const POST = withErrors(async (req: NextRequest) => {
       if (!counter || counter.kind !== "transactional") {
         return NextResponse.json({ error: "Invalid destination account" }, { status: 400 });
       }
-      const counterExponent = fx.currencies.get(counter.currencyCode)?.exponent ?? 2;
-      const counterRate = fx.rateToDefault(counter.currencyCode);
-      if (counterRate.rate.isZero()) {
-        return NextResponse.json(
-          { error: `No FX rate for ${counter.currencyCode}` },
-          { status: 409 },
-        );
-      }
-      const counterMinor =
-        counter.currencyCode === account.currencyCode
-          ? amountMinor
-          : convertMinor(amountMinor, rate.rate.div(counterRate.rate), exponent, counterExponent);
-      const groupId = randomUUID();
+      const legs = buildTransferLegs(fx, account, counter, amountMinor, {
+        date: input.date,
+        note: input.note,
+      });
+      if (!legs.ok) return NextResponse.json({ error: legs.error }, { status: legs.status });
       creates.push(
-        prisma.transaction.create({
-          data: {
-            accountId: account.id,
-            type: "transfer_out",
-            amountMinor: BigInt(amountMinor),
-            currencyCode: account.currencyCode,
-            fxRateToDefault: rate.rate.toString(),
-            amountDefaultMinor: BigInt(amountDefaultMinor),
-            date: input.date,
-            note: input.note,
-            transferGroupId: groupId,
-          },
-          select: { id: true, type: true },
-        }),
-        prisma.transaction.create({
-          data: {
-            accountId: counter.id,
-            type: "transfer_in",
-            amountMinor: BigInt(counterMinor),
-            currencyCode: counter.currencyCode,
-            fxRateToDefault: counterRate.rate.toString(),
-            amountDefaultMinor: BigInt(
-              convertMinor(counterMinor, counterRate.rate, counterExponent, fx.defExponent),
-            ),
-            date: input.date,
-            note: input.note,
-            transferGroupId: groupId,
-          },
-          select: { id: true, type: true },
-        }),
+        prisma.transaction.create({ data: legs.outData, select: { id: true, type: true } }),
+        prisma.transaction.create({ data: legs.inData, select: { id: true, type: true } }),
       );
     }
   }

@@ -5,7 +5,9 @@ import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, parseAmount } from "@/lib/money";
 import { transactionCreateSchema } from "@/lib/schemas/finance";
 import { loadFxContext } from "@/modules/finance/server/fx";
+import { buildTransferLegs } from "@/modules/finance/server/transfers";
 import { withErrors } from "@/lib/api-errors";
+import { kuwaitToday } from "@/lib/dates";
 
 export const GET = withErrors(async (req: NextRequest) => {
   const sp = req.nextUrl.searchParams;
@@ -48,8 +50,7 @@ export const POST = withErrors(async (req: NextRequest) => {
   const input = parsed.data;
 
   // server-side guard: no future-dated transactions (UI blocks them too)
-  const kuwaitToday = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
-  if (input.date > kuwaitToday) {
+  if (input.date > kuwaitToday()) {
     return NextResponse.json(
       { error: `Date ${input.date} is in the future` },
       { status: 400 },
@@ -97,58 +98,20 @@ export const POST = withErrors(async (req: NextRequest) => {
     if (!counter || counter.kind === "priced") {
       return NextResponse.json({ error: "Invalid counter account" }, { status: 400 });
     }
-    const counterInfo = fx.rateToDefault(counter.currencyCode);
-    if (counterInfo.rate.isZero()) {
-      return NextResponse.json(
-        { error: `No FX rate cached for ${counter.currencyCode}` },
-        { status: 409 },
-      );
-    }
     const counterExponent = fx.currencies.get(counter.currencyCode)?.exponent ?? 2;
-    // received amount: caller-provided actual credit wins; else mid-market estimate
-    const counterAmountMinor = input.counterAmount
-      ? parseAmount(input.counterAmount, counterExponent)
-      : convertMinor(
-          amountDefaultMinor,
-          new Decimal(1).div(counterInfo.rate),
-          fx.defExponent,
-          counterExponent,
-        );
-    // each leg carries its OWN default-currency value (difference = implicit fee/spread)
-    const counterDefaultMinor = convertMinor(
-      counterAmountMinor,
-      counterInfo.rate,
-      counterExponent,
-      fx.defExponent,
-    );
-    const groupId = crypto.randomUUID();
+    const legs = buildTransferLegs(fx, account, counter, amountMinor, {
+      date: input.date,
+      note: input.note,
+      // caller-provided actual credit wins; else mid-market estimate
+      counterAmountMinor: input.counterAmount
+        ? parseAmount(input.counterAmount, counterExponent)
+        : undefined,
+      fromRateOverride: rate,
+    });
+    if (!legs.ok) return NextResponse.json({ error: legs.error }, { status: legs.status });
     const [out] = await prisma.$transaction([
-      prisma.transaction.create({
-        data: {
-          accountId: account.id,
-          type: "transfer_out",
-          amountMinor: BigInt(amountMinor),
-          currencyCode: account.currencyCode,
-          fxRateToDefault: rate.toString(),
-          amountDefaultMinor: BigInt(amountDefaultMinor),
-          date: input.date,
-          note: input.note,
-          transferGroupId: groupId,
-        },
-      }),
-      prisma.transaction.create({
-        data: {
-          accountId: counter.id,
-          type: "transfer_in",
-          amountMinor: BigInt(counterAmountMinor),
-          currencyCode: counter.currencyCode,
-          fxRateToDefault: counterInfo.rate.toString(),
-          amountDefaultMinor: BigInt(counterDefaultMinor),
-          date: input.date,
-          note: input.note,
-          transferGroupId: groupId,
-        },
-      }),
+      prisma.transaction.create({ data: legs.outData }),
+      prisma.transaction.create({ data: legs.inData }),
     ]);
     return NextResponse.json(jsonSafe(out), { status: 201 });
   }

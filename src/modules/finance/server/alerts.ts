@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { formatMinor } from "@/lib/money";
+import { kuwaitToday } from "@/lib/dates";
 import { computeCategorySpend } from "./reports";
 import { loadFxContext } from "./fx";
 
@@ -22,8 +23,7 @@ export async function evaluateFinanceAlerts(force = false): Promise<void> {
     create: { key: LAST_EVAL_KEY, valueJson: JSON.stringify(Date.now()) },
   });
 
-  const now = Date.now() + 3 * 3_600_000; // Kuwait time
-  const today = new Date(now).toISOString().slice(0, 10);
+  const today = kuwaitToday();
   const month = today.slice(0, 7);
 
   const [fx, spend, items, priced, quoteRows] = await Promise.all([

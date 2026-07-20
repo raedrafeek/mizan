@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { kuwaitToday } from "@/lib/dates";
 
 export interface CashFlow {
   month: string;
@@ -74,7 +75,7 @@ export interface MonthlyReport {
 
 /** Multi-month aggregates for the Trends view — ONE transaction query. */
 export async function computeMonthlyReport(monthCount = 12): Promise<MonthlyReport> {
-  const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+  const today = kuwaitToday();
   const monthKeys: string[] = [];
   const y = Number(today.slice(0, 4));
   const m = Number(today.slice(5, 7));

@@ -4,6 +4,7 @@ import { jsonSafe } from "@/lib/serialize";
 import { parseAmount } from "@/lib/money";
 import { scheduledItemCreateSchema } from "@/lib/schemas/finance";
 import { withErrors } from "@/lib/api-errors";
+import { kuwaitToday } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export async function GET() {
     where: { status: "pending" },
     orderBy: { dueDate: "asc" },
   });
-  const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+  const today = kuwaitToday();
   const withMeta = items.map((i) => {
     const daysUntil = Math.round(
       (new Date(i.dueDate + "T00:00:00Z").getTime() - new Date(today + "T00:00:00Z").getTime()) /

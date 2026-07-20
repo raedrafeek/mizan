@@ -5,6 +5,7 @@ import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, minorToDecimalString, parseAmount } from "@/lib/money";
 import { loadFxContext } from "@/modules/finance/server/fx";
 import { withErrors } from "@/lib/api-errors";
+import { kuwaitToday } from "@/lib/dates";
 
 const schema = z.object({
   actualBalance: z.string().regex(/^-?\d+(\.\d+)?$/), // major units; negative allowed (credit cards)
@@ -52,7 +53,7 @@ export const POST = withErrors(async (req: NextRequest, ctx: { params: Promise<{
   const deltaDefaultMinor = rate.rate.isZero()
     ? 0
     : convertMinor(deltaMinor, rate.rate, exponent, fx.defExponent);
-  const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+  const today = kuwaitToday();
 
   const txn = await prisma.transaction.create({
     data: {

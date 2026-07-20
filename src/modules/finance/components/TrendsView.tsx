@@ -15,13 +15,23 @@ function monthShort(month: string): string {
   return new Date(month + "-01T00:00:00").toLocaleString("en", { month: "short" });
 }
 
-function xy(values: number[], w: number, h: number, pad = 4): [number, number][] {
+/** x is positioned by actual DATE, not array index — a missed snapshot day
+ * must show as a gap in time, not silently compress the axis. */
+function xyTimed(
+  times: number[],
+  values: number[],
+  w: number,
+  h: number,
+  pad = 4,
+): [number, number][] {
   if (values.length < 2) return [];
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
+  const t0 = times[0];
+  const tSpan = times[times.length - 1] - t0 || 1;
   return values.map((v, i) => [
-    (i / (values.length - 1)) * (w - pad * 2) + pad,
+    ((times[i] - t0) / tSpan) * (w - pad * 2) + pad,
     h - pad - ((v - min) / span) * (h - pad * 2),
   ]);
 }
@@ -276,11 +286,16 @@ function NetWorthTrend() {
   }
 
   const nets = [...data.snapshots.map((s) => s.netDefaultMinor), data.current.netDefaultMinor];
-  const pts = xy(nets, 360, 110);
+  const times = [
+    ...data.snapshots.map((s) => new Date(s.date + "T00:00:00Z").getTime()),
+    Date.now(),
+  ];
+  const pts = xyTimed(times, nets, 360, 110);
   const lastPt = pts[pts.length - 1];
   const first = nets[0];
   const delta = data.current.netDefaultMinor - first;
   const up = delta >= 0;
+  const spanDays = Math.max(1, Math.round((times[times.length - 1] - times[0]) / 86_400_000));
 
   return (
     <Card title="NET WORTH" right={right}>
@@ -310,7 +325,7 @@ function NetWorthTrend() {
               {up ? "+" : "−"}
               {masked(privacy, formatMinor(Math.abs(delta), exponent))}
             </span>{" "}
-            over {data.snapshots.length} days
+            over {spanDays} days
           </p>
         </>
       )}

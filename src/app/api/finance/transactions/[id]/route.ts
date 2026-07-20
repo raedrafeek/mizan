@@ -6,6 +6,7 @@ import { convertMinor, parseAmount } from "@/lib/money";
 import { transactionUpdateSchema } from "@/lib/schemas/finance";
 import { loadFxContext } from "@/modules/finance/server/fx";
 import { withErrors } from "@/lib/api-errors";
+import { kuwaitToday } from "@/lib/dates";
 
 export const PATCH = withErrors(async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
@@ -16,8 +17,7 @@ export const PATCH = withErrors(async (req: NextRequest, ctx: { params: Promise<
   }
   const input = parsed.data;
 
-  const kuwaitToday = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
-  if (input.date && input.date > kuwaitToday) {
+  if (input.date && input.date > kuwaitToday()) {
     return NextResponse.json({ error: `Date ${input.date} is in the future` }, { status: 400 });
   }
 

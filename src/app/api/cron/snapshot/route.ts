@@ -5,6 +5,7 @@ import {
   netPositionFromBalances,
 } from "@/modules/finance/server/balances";
 import { loadFxContext } from "@/modules/finance/server/fx";
+import { kuwaitToday } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    // Kuwait time (UTC+3) date — cron fires 20:55 UTC = 23:55 AST
-    const date = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+    // cron fires 20:55 UTC = 23:55 Kuwait
+    const date = kuwaitToday();
     const ctx = await loadFxContext();
     const balances = await computeBalances(ctx);
     const net = netPositionFromBalances(balances);

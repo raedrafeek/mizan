@@ -5,6 +5,7 @@ import { jsonSafe } from "@/lib/serialize";
 import { parseAmount } from "@/lib/money";
 import { getDefaultCurrency } from "@/modules/finance/server/settings";
 import { withErrors } from "@/lib/api-errors";
+import { kuwaitMonth } from "@/lib/dates";
 
 const upsertSchema = z.object({
   categoryId: z.string().min(1),
@@ -22,7 +23,7 @@ export const POST = withErrors(async (req: NextRequest) => {
   const exponent =
     (await prisma.currency.findUnique({ where: { code: def } }))?.exponent ?? 3;
   const minor = parseAmount(amount, exponent);
-  const month = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 7);
+  const month = kuwaitMonth();
 
   const existing = await prisma.budget.findFirst({
     where: { categoryId, endMonth: null },
