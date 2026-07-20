@@ -1,7 +1,7 @@
 # Mizan — Project Context & Handoff
 
 > Read this first. It contains everything needed to resume work on this project
-> exactly where we left off. Last updated: 2026-07-13.
+> exactly where we left off. Last updated: 2026-07-20.
 
 ## What this project is
 
@@ -105,14 +105,29 @@ The original approved plan: `C:\Users\RaedRafeek\.claude\plans\hi-i-was-crispy-m
 | 7285a21 | **Activity → Trends** (reports, user-requested): LIST \| TRENDS segmented control on Activity. Months-at-a-glance (12mo paired in/out bars via `/api/finance/reports/monthly` — ONE aggregated query, cross-checked vs cashflow endpoint), Category movers (this month vs 3-mo avg, ranked by change), Net worth 3M/1Y/ALL (networth endpoint gained `?days=`, default 30), Income mix (12-mo by source). Hand-rolled SVG, privacy-masked. IA: Home=now, Activity=past, Plan=future, Accounts=own |
 | 3430175 | **All audit findings fixed**: trade DELETE reverts holding qty (Transaction.tradeHoldingAccountId+tradeQuantity, additive push; refuses if qty would go negative); atomic split via `POST /api/finance/transactions/split` (all-or-nothing, verified zero leakage); auto-post catch-up posts ALL overdue occurrences in one cron run (verified 3× catch-up); desktop QuickLog refund toggle; login polish; category icon picker (create + tap-icon-to-change); alert tray reskin |
 | 6cef8cf | **Real-life money batch** (from gap review): **refund** txn type (inflow w/ EXPENSE category, nets OUT of category spend — toggle in RECEIVED mode); **transfer-type Upcoming** (from→to, log creates both legs, cash-flow-neutral — card bills/repayments now safe); **SPLIT** in log screen (parts → categories or owed-back receivable accounts, remainder stays in main cat, batch UNDO); **buy/sell holdings** (`POST /api/finance/holdings/trade`: category-less transfer leg + atomic qty update; BUY/SELL on account screen; oversell rejected); **autoPost** per item — daily fx cron posts due items after refreshing rates. Log-now extracted to `server/horizon.ts`. Schema additions (additive db push): TransactionType.refund, ScheduledDirection.transfer, ScheduledItem.counterAccountId+autoPost |
+| b4f1a6c | Trends month labels: 3-letter names + ’YY year markers (single letters were ambiguous across the year boundary) |
+| 933b70e | **Audit 1-2 — security+reliability** (from `AUDIT_REPORT.md` at workspace root): crons fail CLOSED without CRON_SECRET; APP_PASSWORD is part of the session signing key (**changing the password revokes all sessions** — re-login after rotating); login rate limit (10 fails/15min/IP + 500ms delay); CSP + security headers in next.config; login is a real `<form>` (password managers work); locking clears SW caches; `withErrors` wrapper on ALL mutation routes (FK→400, missing row→404, `AmountError`→400 — no more raw 500s from garbage input, verified 13/13 probes); `error.tsx`/`global-error.tsx`; `LoadError` RETRY state (fetch failure no longer renders as an empty ledger); public `/api/health` (db + last fx/snapshot dates); networth crypto refresh bounded at 1.5s |
+| fa9e353 | **Audit 3 — data integrity**: FK constraints (onDelete: SetNull) on Campaign.linkedAccountId, ScheduledItem account/counter/category, Transaction.tradeHoldingAccountId (pre-checked live DB with `scripts/check-dangling-refs.ts` — kept as regression tool); `@@index(transferGroupId)`; category REQUIRED server-side for expense/income/refund; account PATCH: liability opening-balance sign preserved, currency change refused once transactions exist. Verified 9/9 incl. end-to-end SetNull unlink proof |
+| ce69b13 | **Audit 4 — tests/deps/CI + real bug**: `nextDueDate` clamps to month-end (day-31 monthly bills drifted Jan 31→Mar 3 permanently — found writing tests); removed unused framer-motion/react-hook-form/@hookform (imported nowhere); vitest 2→4 (clears critical/high npm-audit chain; remaining 2 moderate = next/postcss advisory noise); deleted dead `signedMinor`; 27 tests now (money + netPositionFromBalances + nextDueDate); `.github/workflows/ci.yml` runs check+test on push/PR |
+| 3a19220 | **Audit 5 — dedup**: `server/transfers.ts buildTransferLegs()` is the ONLY place transfer legs are built (POST/split/horizon all call it; the 3 copies had drifted) + self-transfer now rejected; `lib/dates.ts kuwaitToday()/kuwaitMonth()` replaces 13 inline UTC+3 hacks (future timezone setting = one-file change); Trends net-worth x-axis positioned by DATE (snapshot gaps show as gaps) |
+| c3b8f4c | **Audit 6 — design/a11y**: global `:focus-visible` ring (keyboard focus was invisible); `--color-faint` lifted to #79828e (was 3.3:1, under AA); PWA themeColor synced to #08090b; `accent-pos` + `--color-pos-fill` replace hardcoded colors; charts get aria labels / decorative marking; filter-chip + range-button touch targets padded; named type-scale tokens (text-2xs/1xs/1sm/base2/md2) added — new code uses them, old sizes migrate opportunistically |
+| 1ec06a9 | **Audit 7 — Sheet primitive**: `shell/Sheet.tsx` (role=dialog, aria-modal, Escape, Tab trap, focus in/return, backdrop close) replaced all 8 ad-hoc overlays (PickerSheet, TransactionSheet, GoalSheet, UpcomingSheet, SafeToSpend breakdown, BudgetWizard, NumpadLog split + account picker) with zero visual change — `panelClassName` carries each caller's exact classes |
 
-Everything from the full project review (2026-07-13) is complete. The user is
-actively logging real data (real accounts + transactions exist in the DB —
-**never pollute them; test data must be prefixed and cleaned up**).
+Everything from the full project review (2026-07-13) AND the full audit
+(`AUDIT_REPORT.md`, 2026-07-19→20) is complete. Deliberately still open from the
+audit: userId scoping (productization), Prisma migrate baseline, budgets partial
+unique index (db push would drop it), snapshot cron backfill, backup restore
+drill, opportunistic type-token migration. The user is actively logging real
+data (real accounts + transactions exist in the DB — **never pollute them; test
+data must be prefixed and cleaned up**).
 
 ## Verification tooling
 
-- `npm run check` (tsc + eslint), `npm test` (18 money tests).
+- `npm run check` (tsc + eslint), `npm test` (27 tests: money, net position,
+  recurrence). GitHub Actions runs both on every push.
+- `npx tsx scripts/check-dangling-refs.ts` — read-only integrity check of the
+  soft references; run before FK-related schema changes.
+- `/api/health` (public) — db up + last fx/snapshot dates, no amounts.
 - **`npx tsx scripts/stress-test.ts`** — inserts 800 marked (`__RVW__`) mixed-currency
   transactions + accounts/budgets/campaigns/horizon, times every endpoint,
   runs functional spot checks, then deletes everything it created. Use after
