@@ -47,21 +47,28 @@ export const accountUpdateSchema = accountCreateSchema.innerType().partial().ext
   archived: z.boolean().optional(),
 });
 
-export const transactionCreateSchema = z.object({
-  accountId: z.string().min(1),
-  type: z.enum(transactionTypes),
-  amount: decimalString, // major units in the account currency, always positive
-  categoryId: z.string().optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  note: z.string().max(500).optional(),
-  // transfers: the counterparty account; server creates both legs
-  counterAccountId: z.string().optional(),
-  // transfers: actual amount received in the counter account's currency
-  // (banks credit less than mid-market — the difference is the implicit fee)
-  counterAmount: decimalString.optional(),
-  // optional manual FX override (1 unit account currency = rate default currency)
-  fxRateToDefault: decimalString.optional(),
-});
+export const transactionCreateSchema = z
+  .object({
+    accountId: z.string().min(1),
+    type: z.enum(transactionTypes),
+    amount: decimalString, // major units in the account currency, always positive
+    categoryId: z.string().optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    note: z.string().max(500).optional(),
+    // transfers: the counterparty account; server creates both legs
+    counterAccountId: z.string().optional(),
+    // transfers: actual amount received in the counter account's currency
+    // (banks credit less than mid-market — the difference is the implicit fee)
+    counterAmount: decimalString.optional(),
+    // optional manual FX override (1 unit account currency = rate default currency)
+    fxRateToDefault: decimalString.optional(),
+  })
+  // the product rule "no uncategorized logs, ever" enforced server-side, not
+  // just by the UI's always-selected chip (transfers/adjustments carry none)
+  .refine((t) => !["expense", "income", "refund"].includes(t.type) || !!t.categoryId, {
+    message: "A category is required for this transaction type",
+    path: ["categoryId"],
+  });
 
 export const transactionUpdateSchema = z.object({
   amount: decimalString.optional(),

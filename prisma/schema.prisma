@@ -73,8 +73,12 @@ model Account {
   archivedAt          DateTime?
   createdAt           DateTime       @default(now())
 
-  currency     Currency      @relation(fields: [currencyCode], references: [code])
-  transactions Transaction[]
+  currency          Currency        @relation(fields: [currencyCode], references: [code])
+  transactions      Transaction[]   @relation("AccountTransactions")
+  tradeTransactions Transaction[]   @relation("TradeHolding")
+  campaigns         Campaign[]
+  scheduledItems    ScheduledItem[] @relation("ScheduledAccount")
+  scheduledCounter  ScheduledItem[] @relation("ScheduledCounter")
 
   @@map("accounts")
 }
@@ -114,13 +118,15 @@ model Transaction {
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
-  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  currency Currency  @relation(fields: [currencyCode], references: [code])
-  category Category? @relation(fields: [categoryId], references: [id])
+  account             Account   @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
+  currency            Currency  @relation(fields: [currencyCode], references: [code])
+  category            Category? @relation(fields: [categoryId], references: [id])
+  tradeHoldingAccount Account?  @relation("TradeHolding", fields: [tradeHoldingAccountId], references: [id], onDelete: SetNull)
 
   @@index([accountId, date])
   @@index([date])
   @@index([categoryId, date])
+  @@index([transferGroupId])
   @@map("transactions")
 }
 
@@ -143,8 +149,9 @@ model Category {
   sortOrder  Int          @default(0)
   archivedAt DateTime?
 
-  transactions Transaction[]
-  budgets      Budget[]
+  transactions   Transaction[]
+  budgets        Budget[]
+  scheduledItems ScheduledItem[]
 
   @@map("categories")
 }
@@ -181,6 +188,9 @@ model Campaign {
   manualProgressMinor BigInt? // or manually tracked progress
   status              CampaignStatus @default(active)
   createdAt           DateTime       @default(now())
+
+  // deleting the account unlinks the goal instead of leaving a dangling id
+  linkedAccount Account? @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
 
   @@map("campaigns")
 }
@@ -219,6 +229,12 @@ model ScheduledItem {
   autoPost            Boolean            @default(false)
   status              ScheduledStatus    @default(pending)
   loggedTransactionId String?
+
+  // deleting an account/category unlinks the item (the UI already handles
+  // account-less items with "set an account first") instead of dangling
+  account        Account?  @relation("ScheduledAccount", fields: [accountId], references: [id], onDelete: SetNull)
+  counterAccount Account?  @relation("ScheduledCounter", fields: [counterAccountId], references: [id], onDelete: SetNull)
+  category       Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([dueDate, status])
   @@map("scheduled_items")

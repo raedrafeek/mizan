@@ -7,7 +7,7 @@ export type LogResult =
   | { ok: true; transactionId: string; display: string }
   | { ok: false; error: string; status: number };
 
-function nextDueDate(dueDate: string, recurrence: "monthly" | "yearly"): string {
+export function nextDueDate(dueDate: string, recurrence: "monthly" | "yearly"): string {
   const d = new Date(dueDate + "T00:00:00Z");
   if (recurrence === "monthly") d.setUTCMonth(d.getUTCMonth() + 1);
   else d.setUTCFullYear(d.getUTCFullYear() + 1);
