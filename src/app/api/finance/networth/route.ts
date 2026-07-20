@@ -13,9 +13,16 @@ export async function GET(req: NextRequest) {
     4000,
     Math.max(7, Number(req.nextUrl.searchParams.get("days") ?? 30) || 30),
   );
-  // lazy crypto refresh — never let a provider outage break the dashboard
+  // lazy crypto refresh — never let a provider outage break the dashboard,
+  // and never let a slow one stall the hero number: bounded at 1.5s (the
+  // fetch keeps running while the rest of the handler does its DB work)
   try {
-    await refreshCryptoQuotes();
+    await Promise.race([
+      refreshCryptoQuotes().catch((e) => {
+        console.warn("crypto refresh failed:", e instanceof Error ? e.message : e);
+      }),
+      new Promise((r) => setTimeout(r, 1_500)),
+    ]);
   } catch {
     // stale quotes flagged downstream
   }

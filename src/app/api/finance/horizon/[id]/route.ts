@@ -4,8 +4,9 @@ import { jsonSafe } from "@/lib/serialize";
 import { parseAmount } from "@/lib/money";
 import { scheduledItemUpdateSchema } from "@/lib/schemas/finance";
 import { logScheduledItem } from "@/modules/finance/server/horizon";
+import { withErrors } from "@/lib/api-errors";
 
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export const PATCH = withErrors(async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   const body = await req.json();
 
@@ -51,10 +52,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     },
   });
   return NextResponse.json(jsonSafe(item));
-}
+});
 
-export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrors(async (_req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   await prisma.scheduledItem.delete({ where: { id } });
   return NextResponse.json({ deleted: true });
-}
+});

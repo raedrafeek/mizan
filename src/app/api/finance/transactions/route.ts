@@ -5,11 +5,15 @@ import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, parseAmount } from "@/lib/money";
 import { transactionCreateSchema } from "@/lib/schemas/finance";
 import { loadFxContext } from "@/modules/finance/server/fx";
+import { withErrors } from "@/lib/api-errors";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrors(async (req: NextRequest) => {
   const sp = req.nextUrl.searchParams;
-  const take = Math.min(Number(sp.get("take") ?? 50), 200);
-  const cursor = sp.get("cursor");
+  // garbage params must degrade to defaults, not crash Prisma with NaN/bad ids
+  const takeRaw = Number(sp.get("take") ?? 50);
+  const take = Number.isFinite(takeRaw) ? Math.min(Math.max(1, Math.floor(takeRaw)), 200) : 50;
+  const cursorRaw = sp.get("cursor");
+  const cursor = cursorRaw && /^[a-z0-9]+$/i.test(cursorRaw) ? cursorRaw : null;
   const accountId = sp.get("accountId") ?? undefined;
   const month = sp.get("month") ?? undefined; // "2026-07"
   const categoryId = sp.get("categoryId") ?? undefined;
@@ -33,9 +37,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     jsonSafe({ items: page, nextCursor: hasMore ? page[page.length - 1].id : null }),
   );
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrors(async (req: NextRequest) => {
   const body = await req.json();
   const parsed = transactionCreateSchema.safeParse(body);
   if (!parsed.success) {
@@ -163,4 +167,4 @@ export async function POST(req: NextRequest) {
     },
   });
   return NextResponse.json(jsonSafe(txn), { status: 201 });
-}
+});

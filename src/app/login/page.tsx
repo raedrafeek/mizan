@@ -9,7 +9,8 @@ export default function LoginPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function unlock() {
+  async function unlock(e?: React.FormEvent) {
+    e?.preventDefault();
     setErr(null);
     setBusy(true);
     try {
@@ -38,21 +39,26 @@ export default function LoginPage() {
         </span>
         <h1 className="text-lg font-bold tracking-[4px]">MIZAN</h1>
       </div>
-      <div className="flex w-full max-w-xs flex-col gap-3 rounded-3xl border border-border-2 bg-card p-6">
+      {/* a real <form> so password managers offer to save/fill */}
+      <form
+        onSubmit={unlock}
+        className="flex w-full max-w-xs flex-col gap-3 rounded-3xl border border-border-2 bg-card p-6"
+      >
         <p className="text-center text-[12.5px] text-muted">
           Welcome back — unlock your money.
         </p>
         <input
           type="password"
+          name="password"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && unlock()}
           placeholder="Password"
           autoFocus
           className="rounded-xl border border-border-3 bg-surface px-4 py-3 text-center text-sm text-ink outline-none focus:border-border-5"
         />
         <button
-          onClick={unlock}
+          type="submit"
           disabled={busy || !password}
           className="rounded-xl bg-ink py-3 text-xs font-bold tracking-[2px] text-surface hover:bg-white disabled:opacity-60"
         >
@@ -61,7 +67,7 @@ export default function LoginPage() {
         <p className="num min-h-[15px] text-center text-[11px] text-neg">
           {err === "Failed" ? "That's not it — try again" : err}
         </p>
-      </div>
+      </form>
     </main>
   );
 }

@@ -4,6 +4,7 @@ import { jsonSafe } from "@/lib/serialize";
 import { parseAmount } from "@/lib/money";
 import { accountCreateSchema } from "@/lib/schemas/finance";
 import { computeBalances } from "@/modules/finance/server/balances";
+import { withErrors } from "@/lib/api-errors";
 
 export async function GET(req: NextRequest) {
   // ?archived=1 lists archived accounts (no balances — for the restore UI)
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(jsonSafe(result));
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrors(async (req: NextRequest) => {
   const body = await req.json();
   const parsed = accountCreateSchema.safeParse(body);
   if (!parsed.success) {
@@ -60,4 +61,4 @@ export async function POST(req: NextRequest) {
     },
   });
   return NextResponse.json(jsonSafe(account), { status: 201 });
-}
+});

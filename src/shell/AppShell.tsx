@@ -84,6 +84,15 @@ function LockButton() {
     <button
       onClick={async () => {
         await fetch("/api/auth/logout", { method: "POST" });
+        // the SW cached financial JSON for offline use — locking must drop it
+        if ("caches" in window) {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          } catch {
+            // cache cleanup is best-effort; the lock itself already happened
+          }
+        }
         window.location.href = "/login";
       }}
       className="flex text-muted hover:text-ink"

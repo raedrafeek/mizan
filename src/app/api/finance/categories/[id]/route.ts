@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
+import { withErrors } from "@/lib/api-errors";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(60).optional(),
@@ -9,7 +10,7 @@ const updateSchema = z.object({
   archived: z.boolean().optional(),
 });
 
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export const PATCH = withErrors(async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   const parsed = updateSchema.safeParse(await req.json());
   if (!parsed.success) {
@@ -25,9 +26,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     },
   });
   return NextResponse.json(jsonSafe(category));
-}
+});
 
-export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrors(async (_req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   const used = await prisma.transaction.count({ where: { categoryId: id } });
   if (used > 0) {
@@ -38,4 +39,4 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   await prisma.budget.deleteMany({ where: { categoryId: id } });
   await prisma.category.delete({ where: { id } });
   return NextResponse.json({ deleted: true });
-}
+});

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { CardSkeleton } from "@/shell/Skeleton";
+import { LoadError } from "@/shell/LoadError";
 import { masked, usePrivacy } from "@/shell/privacy";
 import { fmt, humanDay } from "@/lib/format-money";
 import {
@@ -32,18 +33,20 @@ export function TransactionList({
   filters?: TransactionFilters;
   limit?: number;
 }) {
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } =
     useTransactions(filters ?? (accountId ? { accountId } : undefined));
   const { data: currencyData } = useCurrencies();
   const { privacy } = usePrivacy();
   const [openTxn, setOpenTxn] = useState<TransactionDto | null>(null);
 
   if (isLoading) return <CardSkeleton rows={limit ? 4 : 8} />;
+  // a fetch failure must never masquerade as an empty ledger
+  if (isError) return <LoadError retry={refetch} />;
 
   let items = data?.pages.flatMap((p) => p.items) ?? [];
   if (limit) items = items.slice(0, limit);
   if (items.length === 0) {
-    return <p className="py-2 text-xs text-faint">No transactions yet — log one above.</p>;
+    return <p className="py-2 text-xs text-faint">No transactions here yet.</p>;
   }
 
   const exponentOf = (code: string) =>

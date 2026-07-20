@@ -8,6 +8,15 @@
 export const SESSION_COOKIE = "mizan_session";
 export const SESSION_TTL_MS = 90 * 24 * 3_600_000; // 90 days
 
+/**
+ * The password is part of the signing key, so changing APP_PASSWORD (or
+ * rotating AUTH_SECRET) immediately revokes every outstanding session —
+ * the only revocation path a stateless token can have.
+ */
+export function sessionSecret(): string {
+  return `${process.env.AUTH_SECRET ?? ""}|${process.env.APP_PASSWORD ?? ""}`;
+}
+
 async function hmac(payload: string, secret: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",

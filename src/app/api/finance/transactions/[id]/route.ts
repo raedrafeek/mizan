@@ -5,8 +5,9 @@ import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, parseAmount } from "@/lib/money";
 import { transactionUpdateSchema } from "@/lib/schemas/finance";
 import { loadFxContext } from "@/modules/finance/server/fx";
+import { withErrors } from "@/lib/api-errors";
 
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export const PATCH = withErrors(async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   const body = await req.json();
   const parsed = transactionUpdateSchema.safeParse(body);
@@ -54,9 +55,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     },
   });
   return NextResponse.json(jsonSafe(txn));
-}
+});
 
-export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrors(async (_req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   const existing = await prisma.transaction.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -98,4 +99,4 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     await prisma.transaction.delete({ where: { id } });
   }
   return NextResponse.json({ deleted: true });
-}
+});

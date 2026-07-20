@@ -9,8 +9,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     await evaluateFinanceAlerts();
-  } catch {
+  } catch (e) {
     // evaluation failure must never break the tray; show what we have
+    console.warn("alert evaluation failed:", e instanceof Error ? e.message : e);
   }
   const alerts = await prisma.alert.findMany({
     where: { dismissedAt: null },

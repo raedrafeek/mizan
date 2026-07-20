@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, parseAmount } from "@/lib/money";
 import { loadFxContext } from "@/modules/finance/server/fx";
+import { withErrors } from "@/lib/api-errors";
 import type { Prisma } from "@prisma/client";
 
 const splitSchema = z.object({
@@ -25,7 +26,7 @@ const splitSchema = z.object({
 });
 
 /** One payment fanned into parts — created ATOMICALLY (all or nothing). */
-export async function POST(req: NextRequest) {
+export const POST = withErrors(async (req: NextRequest) => {
   const parsed = splitSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -135,4 +136,4 @@ export async function POST(req: NextRequest) {
   // undo needs one id per logical part (deleting a transfer_out removes its pair)
   const ids = rows.filter((r) => r.type !== "transfer_in").map((r) => r.id);
   return NextResponse.json(jsonSafe({ created: ids.length, ids }), { status: 201 });
-}
+});

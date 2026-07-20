@@ -12,17 +12,20 @@ export interface CurrencyInfo {
   symbol: string;
 }
 
+/** Bad user-entered amount — API routes map this to a 400, not a 500. */
+export class AmountError extends Error {}
+
 /** Parse a user-entered decimal string ("12.450") into minor units. Throws on bad input. */
 export function parseAmount(input: string, exponent: number): number {
   const trimmed = input.trim();
   if (!/^\d+(\.\d+)?$/.test(trimmed)) {
-    throw new Error(`Invalid amount: "${input}"`);
+    throw new AmountError(`Invalid amount: "${input}"`);
   }
   const d = new Decimal(trimmed).mul(new Decimal(10).pow(exponent));
   if (!d.isInteger()) {
-    throw new Error(`Amount "${input}" has more than ${exponent} decimal places`);
+    throw new AmountError(`Amount "${input}" has more than ${exponent} decimal places`);
   }
-  if (d.gt(Number.MAX_SAFE_INTEGER)) throw new Error("Amount too large");
+  if (d.gt(Number.MAX_SAFE_INTEGER)) throw new AmountError("Amount too large");
   return d.toNumber();
 }
 

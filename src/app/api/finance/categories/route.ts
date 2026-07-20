@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
+import { withErrors } from "@/lib/api-errors";
 
 export async function GET(req: NextRequest) {
   // ?archived=1 lists archived categories (for the restore UI)
@@ -19,7 +20,7 @@ const createSchema = z.object({
   icon: z.string().max(30).default("other"),
 });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrors(async (req: NextRequest) => {
   const parsed = createSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -32,4 +33,4 @@ export async function POST(req: NextRequest) {
     data: { ...parsed.data, module: "finance", sortOrder: (max._max.sortOrder ?? 0) + 1 },
   });
   return NextResponse.json(jsonSafe(category), { status: 201 });
-}
+});

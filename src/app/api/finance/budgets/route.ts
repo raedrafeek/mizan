@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { parseAmount } from "@/lib/money";
 import { getDefaultCurrency } from "@/modules/finance/server/settings";
+import { withErrors } from "@/lib/api-errors";
 
 const upsertSchema = z.object({
   categoryId: z.string().min(1),
@@ -11,7 +12,7 @@ const upsertSchema = z.object({
 });
 
 /** Upsert the open-ended monthly budget for a category (one active budget per category). */
-export async function POST(req: NextRequest) {
+export const POST = withErrors(async (req: NextRequest) => {
   const parsed = upsertSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -45,4 +46,4 @@ export async function POST(req: NextRequest) {
         },
       });
   return NextResponse.json(jsonSafe(budget), { status: existing ? 200 : 201 });
-}
+});

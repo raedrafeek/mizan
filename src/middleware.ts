@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import { SESSION_COOKIE, sessionSecret, verifySessionToken } from "@/lib/auth";
 
 /**
  * Locks the whole app behind the session cookie when APP_PASSWORD is set.
@@ -12,14 +12,14 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (
     pathname === "/login" ||
+    pathname === "/api/health" ||
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/api/cron/")
   ) {
     return NextResponse.next();
   }
 
-  const secret = process.env.AUTH_SECRET || process.env.APP_PASSWORD;
-  const ok = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value, secret);
+  const ok = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value, sessionSecret());
   if (ok) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {

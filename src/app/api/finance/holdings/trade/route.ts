@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, parseAmount } from "@/lib/money";
 import { loadFxContext } from "@/modules/finance/server/fx";
+import { withErrors } from "@/lib/api-errors";
 
 const tradeSchema = z.object({
   holdingAccountId: z.string().min(1),
@@ -21,7 +22,7 @@ const tradeSchema = z.object({
  * category-less transfer leg, so cash flow stays clean — investing is not
  * spending) and adjusts the holding's quantity, atomically.
  */
-export async function POST(req: NextRequest) {
+export const POST = withErrors(async (req: NextRequest) => {
   const parsed = tradeSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -86,4 +87,4 @@ export async function POST(req: NextRequest) {
     jsonSafe({ traded: true, transactionId: txn.id, newQuantity: newQty.toString() }),
     { status: 201 },
   );
-}
+});

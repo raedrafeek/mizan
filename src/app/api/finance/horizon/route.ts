@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { parseAmount } from "@/lib/money";
 import { scheduledItemCreateSchema } from "@/lib/schemas/finance";
+import { withErrors } from "@/lib/api-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export async function GET() {
   return NextResponse.json(jsonSafe(withMeta));
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrors(async (req: NextRequest) => {
   const parsed = scheduledItemCreateSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -47,4 +48,4 @@ export async function POST(req: NextRequest) {
     },
   });
   return NextResponse.json(jsonSafe(item), { status: 201 });
-}
+});

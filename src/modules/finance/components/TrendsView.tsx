@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card } from "@/shell/Card";
 import { CardSkeleton } from "@/shell/Skeleton";
+import { LoadError } from "@/shell/LoadError";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
 import { masked, usePrivacy } from "@/shell/privacy";
@@ -38,7 +39,7 @@ const toArea = (pts: [number, number][], h: number) => {
 
 /** Activity → Trends: the long view over months. */
 export function TrendsView() {
-  const { data: report } = useMonthlyReport(12);
+  const { data: report, isError, refetch } = useMonthlyReport(12);
   const { data: currencyData } = useCurrencies();
   const { privacy } = usePrivacy();
   const exponent =
@@ -48,6 +49,13 @@ export function TrendsView() {
   const whole = (minor: number) =>
     Math.round(Math.abs(minor) / 10 ** exponent).toLocaleString("en");
 
+  if (isError) {
+    return (
+      <Card title="TRENDS">
+        <LoadError retry={refetch} />
+      </Card>
+    );
+  }
   if (!report) {
     return (
       <div className="flex flex-col gap-4">

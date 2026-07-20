@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonSafe } from "@/lib/serialize";
 import { convertMinor, minorToDecimalString, parseAmount } from "@/lib/money";
 import { loadFxContext } from "@/modules/finance/server/fx";
+import { withErrors } from "@/lib/api-errors";
 
 const schema = z.object({
   actualBalance: z.string().regex(/^-?\d+(\.\d+)?$/), // major units; negative allowed (credit cards)
@@ -14,7 +15,7 @@ const schema = z.object({
  * `adjustment` transaction for the delta (the one type whose amountMinor
  * carries its own sign) so history stays intact and auditable.
  */
-export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export const POST = withErrors(async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) {
@@ -68,4 +69,4 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   return NextResponse.json(
     jsonSafe({ reconciled: true, delta: deltaMinor, transactionId: txn.id }),
   );
-}
+});

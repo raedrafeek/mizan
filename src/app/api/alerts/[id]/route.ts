@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { withErrors } from "@/lib/api-errors";
 
 /** Dismiss an alert (or all, with id = "all"). */
-export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrors(async (_req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   if (id === "all") {
     await prisma.alert.updateMany({
@@ -13,4 +14,4 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     await prisma.alert.update({ where: { id }, data: { dismissedAt: new Date() } });
   }
   return NextResponse.json({ dismissed: true });
-}
+});

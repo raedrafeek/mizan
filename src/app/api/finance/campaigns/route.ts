@@ -5,6 +5,7 @@ import { parseAmount } from "@/lib/money";
 import { campaignCreateSchema } from "@/lib/schemas/finance";
 import { computeBalances } from "@/modules/finance/server/balances";
 import { getDefaultCurrency } from "@/modules/finance/server/settings";
+import { withErrors } from "@/lib/api-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export async function GET() {
   return NextResponse.json(jsonSafe(result));
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrors(async (req: NextRequest) => {
   const parsed = campaignCreateSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -64,4 +65,4 @@ export async function POST(req: NextRequest) {
     },
   });
   return NextResponse.json(jsonSafe(campaign), { status: 201 });
-}
+});
