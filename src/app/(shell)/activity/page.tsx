@@ -22,7 +22,7 @@ function FilterChip({
     <button
       onClick={onClick}
       className={cn(
-        "flex-none rounded-full border px-3.5 py-1.5 text-[12px] font-semibold",
+        "flex-none rounded-full border px-3.5 py-2 text-[12px] font-semibold",
         active
           ? "border-ink bg-ink text-surface"
           : "border-border-3 bg-card text-muted hover:text-ink",

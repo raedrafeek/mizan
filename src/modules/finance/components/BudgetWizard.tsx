@@ -144,7 +144,7 @@ export function BudgetWizard({ onDone }: { onDone: () => void }) {
                 onChange={(e) =>
                   setChecked((c) => ({ ...c, [s.categoryId]: e.target.checked }))
                 }
-                className="accent-[#35D07F]"
+                className="accent-pos"
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[12.5px] font-semibold text-ink-2">

@@ -101,7 +101,12 @@ export function TrendsView() {
   return (
     <div className="flex flex-col gap-4">
       <Card title="MONTHS AT A GLANCE">
-        <svg viewBox={`0 0 ${W} 140`} className="w-full">
+        <svg
+          viewBox={`0 0 ${W} 140`}
+          className="w-full"
+          role="img"
+          aria-label={`Bar chart of monthly income and spending, last ${months.length} months; exact figures for the current month follow below`}
+        >
           {months.map((m, i) => {
             const x0 = i * SLOT;
             const hIn = (m.incomeDefaultMinor / maxBar) * 100;
@@ -267,7 +272,7 @@ function NetWorthTrend() {
           key={label}
           onClick={() => setDays(d)}
           className={cn(
-            "rounded-md px-2 py-0.5 text-[10px] font-bold tracking-[0.5px]",
+            "rounded-md px-2.5 py-1.5 text-[10px] font-bold tracking-[0.5px]",
             days === d ? "bg-inset text-ink" : "text-faint hover:text-ink",
           )}
         >
@@ -303,8 +308,9 @@ function NetWorthTrend() {
         <p className="text-xs text-faint">Not enough history for this range yet.</p>
       ) : (
         <>
-          <svg viewBox="0 0 360 110" className="w-full">
-            <path d={toArea(pts, 110)} fill="rgba(53,208,127,0.09)" />
+          {/* decorative: the exact from → to figures are in the text below */}
+          <svg viewBox="0 0 360 110" className="w-full" aria-hidden="true">
+            <path d={toArea(pts, 110)} fill="var(--color-pos-fill)" />
             <polyline
               points={toPoints(pts)}
               fill="none"

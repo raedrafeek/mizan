@@ -368,7 +368,7 @@ function HorizonForm({ item, onDone }: { item?: HorizonItemDto; onDone: () => vo
           type="checkbox"
           checked={autoPost}
           onChange={(e) => setAutoPost(e.target.checked)}
-          className="accent-[#35D07F]"
+          className="accent-pos"
         />
         Post automatically on the due date
       </label>

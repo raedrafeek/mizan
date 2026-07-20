@@ -18,14 +18,33 @@
   --color-ink: #f2f4f6;
   --color-ink-2: #c9d0d8;
   --color-muted: #9aa3af;
-  --color-faint: #626b77;
+  /* lifted from #626b77 — that was 3.3:1 on card, below AA for the small
+     text it labels (empty states, axis labels); this lands ≈4.6:1 */
+  --color-faint: #79828e;
   --color-ghost: #3e454e;
   --color-pos: #35d07f;
   --color-neg: #f0544c;
   --color-warn: #f2a93b;
+  /* area fill under positive charts (net worth, sparkline) */
+  --color-pos-fill: rgba(53, 208, 127, 0.09);
 
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Named steps for the app's half-pixel type scale. New code should use
+     these (text-2xs …) instead of minting more arbitrary text-[Npx] values;
+     existing usages migrate opportunistically. Tailwind defaults for
+     text-xs/sm/etc. are left untouched. */
+  --text-2xs: 10.5px;
+  --text-2xs--line-height: 1.45;
+  --text-1xs: 11.5px;
+  --text-1xs--line-height: 1.45;
+  --text-1sm: 12.5px;
+  --text-1sm--line-height: 1.5;
+  --text-base2: 13.5px;
+  --text-base2--line-height: 1.5;
+  --text-md2: 15px;
+  --text-md2--line-height: 1.45;
 }
 
 html {
@@ -57,6 +76,14 @@ body {
 
 input::placeholder {
   color: var(--color-faint);
+}
+
+/* Keyboard focus must be visible everywhere. This unlayered rule outranks
+   the utility-layer outline-none that inputs use to stay clean on click —
+   the ring appears only for keyboard (:focus-visible) navigation. */
+:focus-visible {
+  outline: 2px solid var(--color-pos);
+  outline-offset: 2px;
 }
 
 /* Row actions are hover-revealed on pointer devices but must be ALWAYS

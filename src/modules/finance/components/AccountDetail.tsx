@@ -229,7 +229,7 @@ export function AccountDetail({ id }: { id: string }) {
               type="checkbox"
               checked={a.includeInNetWorth}
               onChange={(e) => update.mutate({ id, includeInNetWorth: e.target.checked })}
-              className="accent-[#35D07F]"
+              className="accent-pos"
             />
             Count in net worth
           </label>

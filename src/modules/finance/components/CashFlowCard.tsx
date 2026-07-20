@@ -127,8 +127,8 @@ export function CashFlowCard({
         )}
       </div>
 
-      {/* daily expense bars */}
-      <div className="mt-4 flex h-[34px] items-end gap-[3px]">
+      {/* daily expense bars — decorative; the totals above carry the data */}
+      <div className="mt-4 flex h-[34px] items-end gap-[3px]" aria-hidden="true">
         {cf.dailyExpenseDefaultMinor.map((v, i) => (
           <span
             key={i}
@@ -136,7 +136,7 @@ export function CashFlowCard({
             style={{
               height: v > 0 ? `${Math.max(8, (v / maxDay) * 100)}%` : "2px",
               // spending bars are information, not alarms
-              background: v > 0 ? "rgba(198,204,212,0.45)" : "var(--color-inset-2)",
+              background: v > 0 ? "color-mix(in srgb, var(--color-ink-2) 45%, transparent)" : "var(--color-inset-2)",
             }}
           />
         ))}

@@ -143,8 +143,8 @@ export function NetPositionHero() {
         const hasDebt = current.liabilitiesDefaultMinor > 0;
         return (
           <div className="w-full max-w-[260px]">
-            <svg width="260" height="72" viewBox="0 0 260 72" fill="none" className="max-w-full">
-              <path d={toAreaPath(netXY)} fill="rgba(53,208,127,0.09)" />
+            <svg width="260" height="72" viewBox="0 0 260 72" fill="none" className="max-w-full" aria-hidden="true">
+              <path d={toAreaPath(netXY)} fill="var(--color-pos-fill)" />
               <polyline
                 points={toPoints(netXY)}
                 stroke="var(--color-pos)"
