@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
 import { todayISO } from "@/lib/format-money";
 import { masked, usePrivacy } from "@/shell/privacy";
+import { Sheet } from "@/shell/Sheet";
 import { Skeleton } from "@/shell/Skeleton";
 import { useCurrencies } from "../api/hooks";
 import { useCashFlow } from "../api/hooks-m2";
@@ -129,13 +130,11 @@ export function SafeToSpendHero() {
       </div>
 
       {open && (
-        <div
-          className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setOpen(false);
-          }}
+        <Sheet
+          onClose={() => setOpen(false)}
+          label="How safe-to-spend is calculated"
+          panelClassName="w-full max-w-md rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl"
         >
-          <div className="w-full max-w-md rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl">
             <p className="mb-3 text-[10.5px] font-bold tracking-[2px] text-faint">
               HOW THIS IS CALCULATED
             </p>
@@ -188,8 +187,7 @@ export function SafeToSpendHero() {
                 Close
               </button>
             </div>
-          </div>
-        </div>
+        </Sheet>
       )}
     </div>
   );

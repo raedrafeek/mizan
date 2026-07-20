@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { todayISO } from "@/lib/format-money";
 import { formatMinor } from "@/lib/money";
 import { masked, usePrivacy } from "@/shell/privacy";
+import { Sheet } from "@/shell/Sheet";
 import { useToast } from "@/shell/toast";
 import { useCurrencies } from "../api/hooks";
 import { useSetBudget, type CashFlowResponse } from "../api/hooks-m2";
@@ -117,13 +118,11 @@ export function BudgetWizard({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onDone();
-      }}
+    <Sheet
+      onClose={onDone}
+      label="Suggested budgets"
+      panelClassName="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl"
     >
-      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl">
         <p className="text-[10.5px] font-bold tracking-[2px] text-faint">SUGGESTED BUDGETS</p>
         <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
           Your average spending over {months[2].slice(0, 7)} – {months[0].slice(0, 7)},
@@ -189,7 +188,6 @@ export function BudgetWizard({ onDone }: { onDone: () => void }) {
             Cancel
           </button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { fmt, todayISO } from "@/lib/format-money";
 import { parseAmount, convertMinor, formatMinor } from "@/lib/money";
 import { masked, usePrivacy } from "@/shell/privacy";
+import { Sheet } from "@/shell/Sheet";
 import { Skeleton } from "@/shell/Skeleton";
 import { useToast } from "@/shell/toast";
 import {
@@ -585,13 +586,11 @@ export function NumpadLog() {
 
       {/* split sheet */}
       {splitOpen && (
-        <div
-          className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSplitOpen(false);
-          }}
+        <Sheet
+          onClose={() => setSplitOpen(false)}
+          label="Split this payment"
+          panelClassName="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl"
         >
-          <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl">
             <p className="text-[10.5px] font-bold tracking-[2px] text-faint">
               SPLIT {toMajor(totalMinor)} {account.currencyCode}
             </p>
@@ -687,19 +686,16 @@ export function NumpadLog() {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
+        </Sheet>
       )}
 
       {/* account picker */}
       {pickerOpen && (
-        <div
-          className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setPickerOpen(false);
-          }}
+        <Sheet
+          onClose={() => setPickerOpen(false)}
+          label={mode === "income" ? "Pick the receiving account" : "Pick the paying account"}
+          panelClassName="max-h-[70vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-4 pb-[calc(16px+env(safe-area-inset-bottom))] md:rounded-3xl"
         >
-          <div className="max-h-[70vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-4 pb-[calc(16px+env(safe-area-inset-bottom))] md:rounded-3xl">
             <p className="mb-2 px-1 text-[10.5px] font-bold tracking-[2px] text-faint">
               {mode === "income" ? "INTO" : "FROM"} ACCOUNT
             </p>
@@ -736,8 +732,7 @@ export function NumpadLog() {
                 </button>
               );
             })}
-          </div>
-        </div>
+        </Sheet>
       )}
     </div>
   );

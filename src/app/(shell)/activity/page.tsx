@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Card } from "@/shell/Card";
+import { Sheet } from "@/shell/Sheet";
 import { cn } from "@/lib/cn";
 import { TransactionList } from "@/modules/finance/components/TransactionList";
 import { TrendsView } from "@/modules/finance/components/TrendsView";
@@ -50,34 +51,31 @@ function PickerSheet({
   children?: React.ReactNode;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Sheet
+      onClose={onClose}
+      label={`Pick ${title.toLowerCase()}`}
+      panelClassName="max-h-[70vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-4 pb-[calc(16px+env(safe-area-inset-bottom))] md:rounded-3xl"
     >
-      <div className="max-h-[70vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-4 pb-[calc(16px+env(safe-area-inset-bottom))] md:rounded-3xl">
-        <p className="mb-2 px-1 text-[10.5px] font-bold tracking-[2px] text-faint">{title}</p>
-        {children}
-        {options.map((o) => (
-          <button
-            key={o.value}
-            onClick={() => {
-              onSelect(o.value);
-              onClose();
-            }}
-            className={cn(
-              "flex w-full items-center rounded-xl px-3 py-3 text-left text-[13.5px]",
-              o.value === selected
-                ? "bg-inset font-semibold text-ink"
-                : "text-ink-2 hover:bg-card-hover",
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
+      <p className="mb-2 px-1 text-[10.5px] font-bold tracking-[2px] text-faint">{title}</p>
+      {children}
+      {options.map((o) => (
+        <button
+          key={o.value}
+          onClick={() => {
+            onSelect(o.value);
+            onClose();
+          }}
+          className={cn(
+            "flex w-full items-center rounded-xl px-3 py-3 text-left text-[13.5px]",
+            o.value === selected
+              ? "bg-inset font-semibold text-ink"
+              : "text-ink-2 hover:bg-card-hover",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </Sheet>
   );
 }
 

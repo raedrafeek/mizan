@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { ConfirmButton } from "@/shell/ConfirmButton";
+import { Sheet } from "@/shell/Sheet";
 import { useToast } from "@/shell/toast";
 import {
   useCategories,
@@ -83,13 +84,11 @@ export function TransactionSheet({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Sheet
+      onClose={onClose}
+      label="Edit transaction"
+      panelClassName="w-full max-w-md rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl"
     >
-      <div className="w-full max-w-md rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl">
         <div className="mb-4 flex items-center gap-3">
           <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-inset text-muted">
             <Icon name={t.category?.icon ?? "other"} size={16} />
@@ -186,7 +185,6 @@ export function TransactionSheet({
             className="rounded-xl border border-neg/40 px-4 py-3 text-[12px] font-bold text-neg/90 disabled:opacity-50"
           />
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

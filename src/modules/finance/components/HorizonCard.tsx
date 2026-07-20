@@ -5,6 +5,7 @@ import { Card } from "@/shell/Card";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/money";
 import { ConfirmButton } from "@/shell/ConfirmButton";
+import { Sheet } from "@/shell/Sheet";
 import { masked, usePrivacy } from "@/shell/privacy";
 import { useAccounts, useCategories, useCurrencies } from "../api/hooks";
 import {
@@ -119,13 +120,11 @@ function UpcomingSheet({ item: h, onClose }: { item: HorizonItemDto; onClose: ()
   const out = h.direction === "outflow";
 
   return (
-    <div
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 md:items-center"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Sheet
+      onClose={onClose}
+      label={`Upcoming: ${h.name}`}
+      panelClassName="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl"
     >
-      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border-4 bg-card p-5 pb-[calc(20px+env(safe-area-inset-bottom))] md:rounded-3xl">
         <div className="mb-1 flex items-center gap-2">
           <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-ink-2">{h.name}</p>
           <button
@@ -189,8 +188,7 @@ function UpcomingSheet({ item: h, onClose }: { item: HorizonItemDto; onClose: ()
             className="ml-auto rounded-full border border-neg/35 px-4 py-2 text-[11px] font-bold tracking-[0.5px] text-neg/80 hover:text-neg"
           />
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
