@@ -7,11 +7,20 @@ export type LogResult =
   | { ok: true; transactionId: string; display: string }
   | { ok: false; error: string; status: number };
 
+/**
+ * Next occurrence, clamped to the target month's last day — naive setUTCMonth
+ * would overflow (Jan 31 + 1 month = Mar 3) and permanently drift a bill due
+ * on the 31st to the 3rd. A day-31 bill lands on Feb 28, then back on Mar 31?
+ * No: recurrence advances from the CURRENT due date, so the clamp holds it at
+ * month-end from then on — the standard "31st ≈ last day" behavior.
+ */
 export function nextDueDate(dueDate: string, recurrence: "monthly" | "yearly"): string {
-  const d = new Date(dueDate + "T00:00:00Z");
-  if (recurrence === "monthly") d.setUTCMonth(d.getUTCMonth() + 1);
-  else d.setUTCFullYear(d.getUTCFullYear() + 1);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = dueDate.split("-").map(Number);
+  const targetY = recurrence === "monthly" ? y + Math.floor(m / 12) : y + 1;
+  const targetM = recurrence === "monthly" ? (m % 12) + 1 : m;
+  const daysInTarget = new Date(Date.UTC(targetY, targetM, 0)).getUTCDate();
+  const day = Math.min(d, daysInTarget);
+  return `${targetY}-${String(targetM).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 /**

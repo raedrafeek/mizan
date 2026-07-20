@@ -75,25 +75,6 @@ export function crossRate(rateBaseToFrom: Decimal.Value, rateBaseToTo: Decimal.V
   return new Decimal(rateBaseToTo).div(from);
 }
 
-/** Signed amount in minor units for a transaction type (expense negative, income positive). */
-export function signedMinor(
-  type: "expense" | "income" | "transfer_out" | "transfer_in" | "adjustment",
-  amountMinor: number | bigint,
-  adjustmentSign: 1 | -1 = 1,
-): bigint {
-  const abs = BigInt(amountMinor) < 0n ? -BigInt(amountMinor) : BigInt(amountMinor);
-  switch (type) {
-    case "expense":
-    case "transfer_out":
-      return -abs;
-    case "income":
-    case "transfer_in":
-      return abs;
-    case "adjustment":
-      return adjustmentSign === -1 ? -abs : abs;
-  }
-}
-
 /** Value of a priced holding: quantity × price (major) → minor units of the price currency. */
 export function holdingValueMinor(
   quantity: Decimal.Value,

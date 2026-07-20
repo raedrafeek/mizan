@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import Decimal from "decimal.js";
 import {
+  AmountError,
   parseAmount,
   minorToDecimalString,
   formatMinor,
   convertMinor,
   crossRate,
-  signedMinor,
   holdingValueMinor,
 } from "./money";
 
@@ -26,6 +26,10 @@ describe("parseAmount", () => {
     expect(() => parseAmount("abc", 3)).toThrow();
     expect(() => parseAmount("-5", 3)).toThrow();
     expect(() => parseAmount("1,5", 3)).toThrow();
+  });
+  it("throws AmountError so API routes can map it to a 400", () => {
+    expect(() => parseAmount("abc", 3)).toThrow(AmountError);
+    expect(() => parseAmount("1.2345", 3)).toThrow(AmountError);
   });
 });
 
@@ -75,23 +79,6 @@ describe("crossRate", () => {
   });
   it("throws on zero", () => {
     expect(() => crossRate(0, 1)).toThrow();
-  });
-});
-
-describe("signedMinor (transfer/sign invariants)", () => {
-  it("expense and transfer_out are negative", () => {
-    expect(signedMinor("expense", 500)).toBe(-500n);
-    expect(signedMinor("transfer_out", 500)).toBe(-500n);
-  });
-  it("income and transfer_in are positive", () => {
-    expect(signedMinor("income", 500)).toBe(500n);
-    expect(signedMinor("transfer_in", 500)).toBe(500n);
-  });
-  it("a transfer pair nets to zero", () => {
-    expect(signedMinor("transfer_out", 750) + signedMinor("transfer_in", 750)).toBe(0n);
-  });
-  it("normalizes accidental negative inputs", () => {
-    expect(signedMinor("expense", -500)).toBe(-500n);
   });
 });
 
