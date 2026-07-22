@@ -15,6 +15,7 @@ export function TopCategoriesCard({ month }: { month: string }) {
   const setBudget = useSetBudget();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   const exponent =
     currencyData?.currencies.find((c) => c.code === currencyData.defaultCurrency)
@@ -27,9 +28,15 @@ export function TopCategoriesCard({ month }: { month: string }) {
       </Card>
     );
 
+  // active = has spending or a budget; the rest stay one tap away so a budget
+  // can be set on ANY category — including on a brand-new empty ledger
   const rows = data.categories.filter(
     (c) => c.spentDefaultMinor > 0 || c.budgetDefaultMinor !== null,
   );
+  const unbudgeted = data.categories.filter(
+    (c) => c.categoryId !== "none" && c.spentDefaultMinor === 0 && c.budgetDefaultMinor === null,
+  );
+  const visible = showAll ? [...rows, ...unbudgeted] : rows;
 
   async function save(categoryId: string) {
     try {
@@ -50,10 +57,12 @@ export function TopCategoriesCard({ month }: { month: string }) {
       }
     >
       <div className="flex flex-col gap-3">
-        {rows.length === 0 && (
-          <p className="text-xs text-faint">No spending this month yet.</p>
+        {visible.length === 0 && (
+          <p className="text-xs text-faint">
+            No budgets yet — set one on any category below.
+          </p>
         )}
-        {rows.map((c) => {
+        {visible.map((c) => {
           const over =
             c.budgetDefaultMinor !== null && c.spentDefaultMinor > c.budgetDefaultMinor;
           const near =
@@ -136,6 +145,16 @@ export function TopCategoriesCard({ month }: { month: string }) {
             </div>
           );
         })}
+        {unbudgeted.length > 0 && (
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className="self-start text-[11.5px] font-semibold text-muted hover:text-ink"
+          >
+            {showAll
+              ? "Hide categories without a budget"
+              : `＋ Set a budget (${unbudgeted.length} more categor${unbudgeted.length === 1 ? "y" : "ies"})`}
+          </button>
+        )}
       </div>
     </Card>
   );
