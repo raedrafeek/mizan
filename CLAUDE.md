@@ -116,10 +116,16 @@ The original approved plan: `C:\Users\RaedRafeek\.claude\plans\hi-i-was-crispy-m
 Everything from the full project review (2026-07-13) AND the full audit
 (`AUDIT_REPORT.md`, 2026-07-19→20) is complete. Deliberately still open from the
 audit: userId scoping (productization), Prisma migrate baseline, budgets partial
-unique index (db push would drop it), snapshot cron backfill, backup restore
-drill, opportunistic type-token migration. The user is actively logging real
-data (real accounts + transactions exist in the DB — **never pollute them; test
-data must be prefixed and cleaned up**).
+unique index (db push would drop it), snapshot cron backfill, opportunistic
+type-token migration.
+
+**DB RESET 2026-07-22 (user-requested fresh start):** the demo dataset AND the
+user's early test entries were wiped so real usage starts clean — kept:
+currencies, categories, fx rates, settings. A VERIFIED full backup of the
+pre-wipe state exists at `backups/mizan-backup-2026-07-22-06-19-16.json`
+(verify any dump with `npx tsx scripts/verify-backup.ts`). From now on the DB
+contains ONLY the user's real data — **never pollute it; test data must be
+prefixed and cleaned up, and take a backup before anything destructive**.
 
 ## Verification tooling
 
@@ -134,7 +140,9 @@ data must be prefixed and cleaned up**).
   any significant change. Current baseline (local, Kuwait→Frankfurt ~600ms/RT):
   accounts ~1.3s, networth ~1.8s, currencies ~0.6s, alerts ~1.2s. Deployed
   (fra1, colocated) is much faster.
-- `npm run backup` — full JSON dump to `backups/` (gitignored).
+- `npm run backup` — full JSON dump to `backups/` (gitignored);
+  `npx tsx scripts/verify-backup.ts` proves the newest dump is complete
+  (every table's row count vs live DB + BigInt serialization check).
 
 ## Environment quirks (per-machine — IMPORTANT)
 
